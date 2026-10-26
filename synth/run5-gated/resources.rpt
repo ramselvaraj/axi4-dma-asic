@@ -1,0 +1,129 @@
+ 
+****************************************
+Report : resources
+Design : dma_top
+Version: V-2023.12-SP5-1
+Date   : Mon Oct 26 05:18:01 2026
+****************************************
+
+
+No resource sharing information to report.
+
+No implementations to report
+ 
+****************************************
+Design : dma_wr_engine
+****************************************
+
+Resource Report for this hierarchy in file
+        /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv
+=============================================================================
+| Cell           | Module         | Parameters | Contained Operations       |
+=============================================================================
+| sub_x_1        | DW01_sub       | width=14   | sub_10_C21_rn (dma_pkg.sv:10) |
+| lt_x_2         | DW_cmp         | width=29   | lt_15_C21_rn (dma_pkg.sv:15) |
+| sub_x_5        | DW01_dec       | width=6    | sub_36 (dma_wr_engine.sv:36) |
+| add_x_6        | DW01_add       | width=32   | add_39 (dma_wr_engine.sv:39) |
+| sub_x_7        | DW01_sub       | width=32   | sub_40 (dma_wr_engine.sv:40) |
+| sub_x_8        | DW01_dec       | width=5    | sub_45 (dma_wr_engine.sv:45) |
+=============================================================================
+
+
+Implementation Report
+===============================================================================
+|                    |                  | Current            | Set            |
+| Cell               | Module           | Implementation     | Implementation |
+===============================================================================
+| sub_x_1            | DW01_sub         | apparch (area)     |                |
+| lt_x_2             | DW_cmp           | apparch (area)     |                |
+| sub_x_5            | DW01_dec         | apparch (area)     |                |
+| add_x_6            | DW01_add         | apparch (area)     |                |
+| sub_x_7            | DW01_sub         | apparch (area)     |                |
+| sub_x_8            | DW01_dec         | apparch (area)     |                |
+===============================================================================
+
+ 
+****************************************
+Design : async_fifo_DW64_AW5
+****************************************
+
+Resource Report for this hierarchy in file
+        /home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv
+=============================================================================
+| Cell           | Module         | Parameters | Contained Operations       |
+=============================================================================
+| add_x_1        | DW01_add       | width=6    | add_21 (async_fifo.sv:21)  |
+| add_x_2        | DW01_add       | width=6    | add_23 (async_fifo.sv:23)  |
+| eq_x_3         | DW_cmp         | width=6    | eq_59 (async_fifo.sv:59)   |
+| eq_x_4         | DW_cmp         | width=6    | eq_72 (async_fifo.sv:72)   |
+=============================================================================
+
+
+Implementation Report
+===============================================================================
+|                    |                  | Current            | Set            |
+| Cell               | Module           | Implementation     | Implementation |
+===============================================================================
+| add_x_1            | DW01_add         | apparch (area)     |                |
+| add_x_2            | DW01_add         | apparch (area)     |                |
+| eq_x_3             | DW_cmp           | apparch (area)     |                |
+| eq_x_4             | DW_cmp           | apparch (area)     |                |
+===============================================================================
+
+ 
+****************************************
+Design : dma_rd_engine
+****************************************
+
+Resource Report for this hierarchy in file
+        /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_rd_engine.sv
+=============================================================================
+| Cell           | Module         | Parameters | Contained Operations       |
+=============================================================================
+| sub_x_1        | DW01_sub       | width=14   | sub_10_C17_rn (dma_pkg.sv:10) |
+| lt_x_2         | DW_cmp         | width=29   | lt_15_C17_rn (dma_pkg.sv:15) |
+| sub_x_5        | DW01_dec       | width=6    | sub_31 (dma_rd_engine.sv:31) |
+| add_x_6        | DW01_add       | width=32   | add_33 (dma_rd_engine.sv:33) |
+| sub_x_7        | DW01_sub       | width=32   | sub_34 (dma_rd_engine.sv:34) |
+| eq_x_8         | DW_cmp         | width=32   | eq_35 (dma_rd_engine.sv:35) |
+=============================================================================
+
+
+Implementation Report
+===============================================================================
+|                    |                  | Current            | Set            |
+| Cell               | Module           | Implementation     | Implementation |
+===============================================================================
+| sub_x_1            | DW01_sub         | apparch (area)     |                |
+| lt_x_2             | DW_cmp           | apparch (area)     |                |
+| sub_x_5            | DW01_dec         | apparch (area)     |                |
+| add_x_6            | DW01_add         | apparch (area)     |                |
+| sub_x_7            | DW01_sub         | apparch (area)     |                |
+| eq_x_8             | DW_cmp           | apparch (area)     |                |
+===============================================================================
+
+
+No resource sharing information to report.
+ 
+****************************************
+Design : cdc_pulse_0
+****************************************
+
+No implementations to report
+
+No resource sharing information to report.
+ 
+****************************************
+Design : cdc_pulse_1
+****************************************
+
+No implementations to report
+
+No resource sharing information to report.
+ 
+****************************************
+Design : dma_regs
+****************************************
+
+No implementations to report
+1

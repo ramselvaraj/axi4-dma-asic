@@ -1,0 +1,605 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay min
+        -max_paths 10
+Design : dma_top
+Version: V-2023.12-SP5-1
+Date   : Mon Oct 26 05:18:01 2026
+****************************************
+
+Operating Conditions: typical   Library: gscl45nm
+Wire Load Model Mode: top
+
+  Startpoint: wr_err_s1_reg
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: wr_err_s2_reg
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  wr_err_s1_reg/CLK (DFFSR)            0.000000   0.000000 r
+  wr_err_s1_reg/Q (DFFSR)              0.160467   0.160467 r
+  wr_err_s2_reg/D (DFFSR)              0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  wr_err_s2_reg/CLK (DFFSR)            0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_done_x/sync_reg_0_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_done_x/sync_reg_1_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_done_x/sync_reg_0_/CLK (DFFSR)     0.000000   0.000000 r
+  u_done_x/sync_reg_0_/Q (DFFSR)       0.160467   0.160467 r
+  u_done_x/sync_reg_1_/D (DFFSR)       0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_done_x/sync_reg_1_/CLK (DFFSR)     0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_fifo/wq1_rgray_reg_5_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_fifo/wq2_rgray_reg_5_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/wq1_rgray_reg_5_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/wq1_rgray_reg_5_/Q (DFFSR)    0.160467   0.160467 r
+  u_fifo/wq2_rgray_reg_5_/D (DFFSR)    0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/wq2_rgray_reg_5_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_fifo/wq1_rgray_reg_4_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_fifo/wq2_rgray_reg_4_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/wq1_rgray_reg_4_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/wq1_rgray_reg_4_/Q (DFFSR)    0.160467   0.160467 r
+  u_fifo/wq2_rgray_reg_4_/D (DFFSR)    0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/wq2_rgray_reg_4_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_fifo/wq1_rgray_reg_3_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_fifo/wq2_rgray_reg_3_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/wq1_rgray_reg_3_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/wq1_rgray_reg_3_/Q (DFFSR)    0.160467   0.160467 r
+  u_fifo/wq2_rgray_reg_3_/D (DFFSR)    0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/wq2_rgray_reg_3_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_fifo/wq1_rgray_reg_2_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_fifo/wq2_rgray_reg_2_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/wq1_rgray_reg_2_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/wq1_rgray_reg_2_/Q (DFFSR)    0.160467   0.160467 r
+  u_fifo/wq2_rgray_reg_2_/D (DFFSR)    0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/wq2_rgray_reg_2_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_fifo/wq1_rgray_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_fifo/wq2_rgray_reg_1_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/wq1_rgray_reg_1_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/wq1_rgray_reg_1_/Q (DFFSR)    0.160467   0.160467 r
+  u_fifo/wq2_rgray_reg_1_/D (DFFSR)    0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/wq2_rgray_reg_1_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: u_fifo/wq1_rgray_reg_0_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_fifo/wq2_rgray_reg_0_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/wq1_rgray_reg_0_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/wq1_rgray_reg_0_/Q (DFFSR)    0.160467   0.160467 r
+  u_fifo/wq2_rgray_reg_0_/D (DFFSR)    0.000000   0.160467 r
+  data arrival time                               0.160467
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/wq2_rgray_reg_0_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.227926   0.327926
+  data required time                              0.327926
+  -----------------------------------------------------------
+  data required time                              0.327926
+  data arrival time                               -0.160467
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.167459
+
+
+  Startpoint: done_rd_d_reg
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_regs/done_reg
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  done_rd_d_reg/CLK (DFFSR)            0.000000   0.000000 r
+  done_rd_d_reg/Q (DFFSR)              0.166510   0.166510 r
+  u_regs/done_pulse (dma_regs)         0.000000   0.166510 r
+  u_regs/U313/Y (AOI21X1)              0.013824   0.180334 f
+  u_regs/U314/Y (INVX1)                -0.003391  0.176943 r
+  u_regs/done_reg/D (DFFSR)            0.000000   0.176943 r
+  data arrival time                               0.176943
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_regs/done_reg/CLK (DFFSR)          0.000000   0.100000 r
+  library hold time                    0.218750   0.318750
+  data required time                              0.318750
+  -----------------------------------------------------------
+  data required time                              0.318750
+  data arrival time                               -0.176943
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.141807
+
+
+  Startpoint: u_done_x/sync_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_rd)
+  Endpoint: u_done_x/sync_reg_2_
+            (rising edge-triggered flip-flop clocked by clk_rd)
+  Path Group: clk_rd
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_done_x/sync_reg_1_/CLK (DFFSR)     0.000000   0.000000 r
+  u_done_x/sync_reg_1_/Q (DFFSR)       0.159045   0.159045 r
+  u_done_x/U8/Y (BUFX2)                0.039287   0.198332 r
+  u_done_x/sync_reg_2_/D (DFFSR)       0.000000   0.198332 r
+  data arrival time                               0.198332
+
+  clock clk_rd (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_done_x/sync_reg_2_/CLK (DFFSR)     0.000000   0.100000 r
+  library hold time                    0.229270   0.329270
+  data required time                              0.329270
+  -----------------------------------------------------------
+  data required time                              0.329270
+  data arrival time                               -0.198332
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.130938
+
+
+  Startpoint: u_start_x/sync_reg_0_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_start_x/sync_reg_1_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_start_x/sync_reg_0_/CLK (DFFSR)    0.000000   0.000000 r
+  u_start_x/sync_reg_0_/Q (DFFSR)      0.145815   0.145815 f
+  u_start_x/sync_reg_1_/D (DFFSR)      0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_start_x/sync_reg_1_/CLK (DFFSR)    0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_fifo/rq1_wgray_reg_5_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_fifo/rq2_wgray_reg_5_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/rq1_wgray_reg_5_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/rq1_wgray_reg_5_/Q (DFFSR)    0.145815   0.145815 f
+  u_fifo/rq2_wgray_reg_5_/D (DFFSR)    0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/rq2_wgray_reg_5_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_fifo/rq1_wgray_reg_4_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_fifo/rq2_wgray_reg_4_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/rq1_wgray_reg_4_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/rq1_wgray_reg_4_/Q (DFFSR)    0.145815   0.145815 f
+  u_fifo/rq2_wgray_reg_4_/D (DFFSR)    0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/rq2_wgray_reg_4_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_fifo/rq1_wgray_reg_3_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_fifo/rq2_wgray_reg_3_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/rq1_wgray_reg_3_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/rq1_wgray_reg_3_/Q (DFFSR)    0.145815   0.145815 f
+  u_fifo/rq2_wgray_reg_3_/D (DFFSR)    0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/rq2_wgray_reg_3_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_fifo/rq1_wgray_reg_2_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_fifo/rq2_wgray_reg_2_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/rq1_wgray_reg_2_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/rq1_wgray_reg_2_/Q (DFFSR)    0.145815   0.145815 f
+  u_fifo/rq2_wgray_reg_2_/D (DFFSR)    0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/rq2_wgray_reg_2_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_fifo/rq1_wgray_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_fifo/rq2_wgray_reg_1_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/rq1_wgray_reg_1_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/rq1_wgray_reg_1_/Q (DFFSR)    0.145815   0.145815 f
+  u_fifo/rq2_wgray_reg_1_/D (DFFSR)    0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/rq2_wgray_reg_1_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_fifo/rq1_wgray_reg_0_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_fifo/rq2_wgray_reg_0_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_fifo/rq1_wgray_reg_0_/CLK (DFFSR)  0.000000   0.000000 r
+  u_fifo/rq1_wgray_reg_0_/Q (DFFSR)    0.145815   0.145815 f
+  u_fifo/rq2_wgray_reg_0_/D (DFFSR)    0.000000   0.145815 f
+  data arrival time                               0.145815
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_fifo/rq2_wgray_reg_0_/CLK (DFFSR)  0.000000   0.100000 r
+  library hold time                    0.156250   0.256250
+  data required time                              0.256250
+  -----------------------------------------------------------
+  data required time                              0.256250
+  data arrival time                               -0.145815
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.110435
+
+
+  Startpoint: u_wr/awaddr_reg_0_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_wr/awaddr_reg_0_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_wr/awaddr_reg_0_/CLK (DFFSR)       0.000000   0.000000 r
+  u_wr/awaddr_reg_0_/Q (DFFSR)         0.145699   0.145699 f
+  u_wr/U482/Y (INVX1)                  0.004505   0.150204 r
+  u_wr/U484/Y (AOI22X1)                0.013561   0.163766 f
+  u_wr/awaddr_reg_0_/D (DFFSR)         0.000000   0.163766 f
+  data arrival time                               0.163766
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_wr/awaddr_reg_0_/CLK (DFFSR)       0.000000   0.100000 r
+  library hold time                    0.161806   0.261806
+  data required time                              0.261806
+  -----------------------------------------------------------
+  data required time                              0.261806
+  data arrival time                               -0.163766
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.098040
+
+
+  Startpoint: u_wr/awaddr_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_wr/awaddr_reg_1_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_wr/awaddr_reg_1_/CLK (DFFSR)       0.000000   0.000000 r
+  u_wr/awaddr_reg_1_/Q (DFFSR)         0.145699   0.145699 f
+  u_wr/U487/Y (INVX1)                  0.004505   0.150204 r
+  u_wr/U489/Y (AOI22X1)                0.013561   0.163766 f
+  u_wr/awaddr_reg_1_/D (DFFSR)         0.000000   0.163766 f
+  data arrival time                               0.163766
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_wr/awaddr_reg_1_/CLK (DFFSR)       0.000000   0.100000 r
+  library hold time                    0.161806   0.261806
+  data required time                              0.261806
+  -----------------------------------------------------------
+  data required time                              0.261806
+  data arrival time                               -0.163766
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.098040
+
+
+  Startpoint: u_wr/awaddr_reg_2_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: u_wr/awaddr_reg_2_
+            (rising edge-triggered flip-flop clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: min
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  u_wr/awaddr_reg_2_/CLK (DFFSR)       0.000000   0.000000 r
+  u_wr/awaddr_reg_2_/Q (DFFSR)         0.145699   0.145699 f
+  u_wr/U492/Y (INVX1)                  0.004505   0.150204 r
+  u_wr/U494/Y (AOI22X1)                0.013561   0.163766 f
+  u_wr/awaddr_reg_2_/D (DFFSR)         0.000000   0.163766 f
+  data arrival time                               0.163766
+
+  clock clk_wr (rise edge)             0.000000   0.000000
+  clock network delay (ideal)          0.000000   0.000000
+  clock uncertainty                    0.100000   0.100000
+  u_wr/awaddr_reg_2_/CLK (DFFSR)       0.000000   0.100000 r
+  library hold time                    0.161806   0.261806
+  data required time                              0.261806
+  -----------------------------------------------------------
+  data required time                              0.261806
+  data arrival time                               -0.163766
+  -----------------------------------------------------------
+  slack (VIOLATED)                                -0.098040
+
+
+1

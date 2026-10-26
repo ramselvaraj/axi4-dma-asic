@@ -1,0 +1,1043 @@
+mkdir -p synth/build && cd synth/build && dc_shell -f ../dc.tcl
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid this.
+
+                           Design Compiler Graphical 
+                                 DC Ultra (TM)
+                                  DFTMAX (TM)
+                              Power Compiler (TM)
+                                 DesignWare (R)
+                                 DC Expert (TM)
+                               Design Vision (TM)
+                               HDL Compiler (TM)
+                               VHDL Compiler (TM)
+                                  DFT Compiler
+                               Design Compiler(R)
+
+              Version V-2023.12-SP5-1 for linux64 - Sep 03, 2024 
+
+                    Copyright (c) 1988 - 2024 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+ Inc. This software may only be used in accordance with the terms and conditions
+ of a written license agreement with Synopsys, Inc. All other use, reproduction,
+   or distribution of this software is strictly prohibited.  Licensed Products
+     communicate with Synopsys servers for the purpose of providing software
+    updates, detecting software piracy and verifying that customers are using
+    Licensed Products in conformity with the applicable License Key for such
+  Licensed Products. Synopsys will use information gathered in connection with
+    this process to deliver software updates and pursue software pirates and
+                                   infringers.
+
+ Inclusivity & Diversity - Visit SolvNetPlus to read the "Synopsys Statement on
+            Inclusivity and Diversity" (Refer to article 000036315 at
+                        https://solvnetplus.synopsys.com)
+Initializing...
+Current time:       Mon Oct 26 05:17:46 2026
+Hostname:           nc-asu6-l03.apporto.com
+CPU Model:          Intel(R) Xeon(R) Platinum 8488C
+CPU Details:        Cores = 16 : Sockets = 1 : Cache Size = 107520 KB : Freq = 2.40 GHz
+OS:                 Linux 4.18.0-372.19.1.el8_6.x86_64
+RAM:                 61 GB (Free  23 GB)
+Swap:                 0 GB (Free   0 GB)
+Work Filesystem:    /home/a33939_asu mounted to nc-u24-nfs01.apporto.com:/homes/a33939_asu
+Tmp Filesystem:     /tmp mounted to tmpfs
+Work Disk:          3936 GB (Free 1420 GB)
+Tmp Disk:            30 GB (Free  30 GB)
+# Run from the repository root:  dc_shell -f synth/dc.tcl   (or: make dc)
+# Source synth/env.sh first. TARGET_LIBRARY is a Tcl list of absolute .db paths.
+#
+# DC_ELAB_ONLY=1    stop after elaboration and check_design
+# DC_REPORT_ONLY=1  reload the mapped DDC and rewrite the diagnostic reports
+# DC_OUT_DIR=path   output directory (default synth/build)
+set script_dir [file dirname [file normalize [info script]]]
+/home/a33939_asu/Personal/axi4-dma-asic/synth
+set repo_dir [file dirname $script_dir]
+/home/a33939_asu/Personal/axi4-dma-asic
+proc env_or {name fallback} {
+    if {[info exists ::env($name)] && $::env($name) ne ""} {
+        return $::env($name)
+    }
+    return $fallback
+}
+proc constraint_value {name fallback} {
+    set value [env_or $name $fallback]
+    if {![string is double -strict $value] || !($value >= 0 && $value < 1e9)} {
+        error "$name must be a finite nonnegative number."
+    }
+    return $value
+}
+proc report_diagnostics {} {
+    redirect -file reports/timing_hold.rpt {
+        report_timing -delay_type min -max_paths 10 -significant_digits 6
+    }
+    redirect -file reports/constraints_detailed.rpt {
+        report_constraint -all_violators -significant_digits 6
+    }
+    redirect -file reports/clock.rpt {report_clock -attributes}
+    redirect -file reports/ports.rpt {report_port -verbose [get_ports *]}
+    redirect -file reports/check_timing.rpt {check_timing}
+    write_sdc results/constraints_diagnostic.sdc
+}
+proc run_synthesis {} {
+    global repo_dir script_dir
+    set top dma_top
+
+    set libraries [env_or TARGET_LIBRARY {}]
+    if {[llength $libraries] == 0} {
+        error "Set TARGET_LIBRARY (source synth/env.sh)."
+    }
+    set extra_libraries [env_or LINK_LIBRARY {}]
+    foreach library [concat $libraries $extra_libraries] {
+        if {![file isfile $library] || [file pathtype $library] ne "absolute"} {
+            error "Library must be an existing absolute path: $library"
+        }
+    }
+
+    set output_dir [file normalize [env_or DC_OUT_DIR [file join $repo_dir synth build]]]
+    file mkdir $output_dir
+    cd $output_dir
+    file mkdir work reports results
+    define_design_lib WORK -path [file join $output_dir work]
+
+    set_app_var target_library $libraries
+    set_app_var synthetic_library [list dw_foundation.sldb]
+    set_app_var link_library [concat [list *] $libraries $extra_libraries [list dw_foundation.sldb]]
+
+    if {[env_or DC_REPORT_ONLY 0] eq "1"} {
+        if {![file isfile results/${top}.ddc]} {
+            error "No mapped DDC in $output_dir/results. Run synthesis first."
+        }
+        read_ddc results/${top}.ddc
+        current_design $top
+        if {![link]} {error "Cannot link the saved mapped design."}
+        report_diagnostics
+        puts "Diagnostic reports complete: $output_dir/reports"
+        return
+    }
+
+    set fd [open [file join $repo_dir rtl files.txt] r]
+    set manifest [read $fd]
+    close $fd
+    set rtl_sources {}
+    foreach line [split $manifest "\n"] {
+        set line [string trim $line]
+        if {$line ne "" && ![string match "#*" $line]} {
+            lappend rtl_sources [file join $repo_dir $line]
+        }
+    }
+
+    if {![analyze -format sverilog -define [list SYNTHESIS] $rtl_sources]} {
+        error "RTL analysis failed."
+    }
+    elaborate $top
+    current_design $top
+    if {![link]} {
+        error "Design linking failed. Check the libraries and unresolved references."
+    }
+    uniquify
+    source [file join $script_dir constraints.tcl]
+
+    redirect -file reports/check_elaborated.rpt {set design_ok [check_design]}
+    if {!$design_ok} {
+        error "Elaborated design failed check_design. See reports/check_elaborated.rpt."
+    }
+    write -format ddc -hierarchy -output results/${top}_elaborated.ddc
+    if {[env_or DC_ELAB_ONLY 0] eq "1"} {
+        puts "Elaboration complete: $output_dir"
+        return
+    }
+
+    # Keep hierarchy so the area report shows FIFO, engines and registers apart.
+    if {![compile_ultra -no_autoungroup]} {
+        error "Technology mapping failed."
+    }
+    if {[env_or DC_FIX_HOLD 0] eq "1"} {
+        puts "FIX_HOLD: running compile -only_hold_time"
+        if {[catch {compile -only_hold_time} hold_msg]} {
+            puts "WARNING: hold fixing failed: $hold_msg"
+        } else {
+            puts "FIX_HOLD: hold fixing pass finished"
+        }
+    }
+    redirect -file reports/check_mapped.rpt {set design_ok [check_design]}
+    if {!$design_ok} {
+        error "Mapped design failed check_design. See reports/check_mapped.rpt."
+    }
+    change_names -rules verilog -hierarchy
+    write -format ddc -hierarchy -output results/${top}.ddc
+    write -format verilog -hierarchy -output results/${top}.v
+    write_sdc results/${top}.sdc
+    redirect -file reports/area.rpt {report_area -hierarchy}
+    redirect -file reports/timing.rpt {report_timing -delay_type max -max_paths 20}
+    redirect -file reports/constraints.rpt {report_constraint -all_violators}
+    redirect -file reports/qor.rpt {report_qor}
+    redirect -file reports/resources.rpt {report_resources -hierarchy}
+    report_diagnostics
+    puts "Synthesis complete: $output_dir"
+}
+if {[catch {run_synthesis} message]} {
+    puts stderr "ERROR: $message"
+    exit 1
+}
+Running PRESTO HDLC
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_pkg.sv
+Warning:  /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_pkg.sv:1: The package dma_pkg has already been analyzed. It is being replaced. (VER-26)
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/cdc_pulse.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_rd_engine.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_top.sv
+Presto compilation completed successfully.
+Loading db file '/usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db'
+Loading db file '/usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/dw_foundation.sldb'
+Loading db file '/usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/gtech.db'
+Loading db file '/usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/standard.sldb'
+  Loading link library 'gscl45nm'
+  Loading link library 'gtech'
+Running PRESTO HDLC
+
+Inferred memory devices in process
+	in routine dma_top line 57 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_top.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|    done_rd_d_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    wr_err_s1_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    wr_err_s2_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_top)
+Elaborated 1 design.
+Current design is now 'dma_top'.
+Information: Building the design 'dma_regs'. (HDL-193)
+
+Statistics for case statements in always block at line 41 in file
+	'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|            53            |    auto/auto     |
+===============================================
+
+Statistics for case statements in always block at line 81 in file
+	'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|            86            |    auto/auto     |
+===============================================
+
+Inferred memory devices in process
+	in routine dma_regs line 41 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|   irq_status_reg    | Flip-flop |   2   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    s_bvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|      busy_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|      done_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|      start_reg      | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    rd_err_q_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    wr_err_q_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     cfg_err_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    src_addr_reg     | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    dst_addr_reg     | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       len_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|     irq_en_reg      | Flip-flop |   2   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine dma_regs line 81 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|     s_rdata_reg     | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    s_rvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_regs)
+Information: Building the design 'cdc_pulse'. (HDL-193)
+
+Inferred memory devices in process
+	in routine cdc_pulse line 11 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/cdc_pulse.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|       tgl_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine cdc_pulse line 15 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/cdc_pulse.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      sync_reg       | Flip-flop |   3   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (cdc_pulse)
+Information: Building the design 'dma_rd_engine'. (HDL-193)
+
+Inferred memory devices in process
+	in routine dma_rd_engine line 20 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_rd_engine.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|       err_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     ar_busy_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     arvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     araddr_reg      | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      arlen_reg      | Flip-flop |   8   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       cur_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       rem_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_rd_engine)
+Information: Building the design 'async_fifo' instantiated from design 'dma_top' with
+	the parameters "DW=64,AW=5". (HDL-193)
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 27 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      wgray_reg      | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      wbin_reg       | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 42 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+============================================================================
+|    Register Name     | Type  | Width | Bus | MB | AR | AS | SR | SS | ST |
+============================================================================
+| g_entry[0].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[1].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[2].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[3].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[4].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[5].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[6].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[7].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[8].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[9].en_l_reg  | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[10].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[11].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[12].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[13].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[14].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[15].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[16].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[17].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[18].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[19].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[20].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[21].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[22].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[23].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[24].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[25].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[26].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[27].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[28].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[29].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[30].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+| g_entry[31].en_l_reg | Latch |   1   |  N  | N  | N  | N  | -  | -  | -  |
+============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 47 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|  g_entry[0].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[1].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[2].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[3].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[4].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[5].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[6].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[7].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[8].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[9].q_reg   | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[10].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[11].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[12].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[13].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[14].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[15].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[16].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[17].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[18].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[19].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[20].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[21].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[22].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[23].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[24].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[25].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[26].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[27].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[28].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[29].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[30].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+|  g_entry[31].q_reg  | Flip-flop |  64   |  Y  | N  | N  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 53 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|    wq2_rgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    wq1_rgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 57 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      wfull_reg      | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 62 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      rgray_reg      | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      rbin_reg       | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 66 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|    rq2_wgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    rq1_wgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 70 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|     rempty_reg      | Flip-flop |   1   |  N  | N  | N  | Y  | N  | N  | N  |
+===============================================================================
+Statistics for MUX_OPs
+============================================================
+|    block name/line     | Inputs | Outputs | # sel inputs |
+============================================================
+| async_fifo_DW64_AW5/74 |   32   |   64    |      5       |
+============================================================
+Presto compilation completed successfully. (async_fifo_DW64_AW5)
+Information: Building the design 'dma_wr_engine'. (HDL-193)
+
+Statistics for case statements in always block at line 24 in file
+	'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|            30            |    auto/auto     |
+===============================================
+
+Inferred memory devices in process
+	in routine dma_wr_engine line 24 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|   done_pulse_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|       st_reg        | Flip-flop |   3   |  Y  | N  | Y  | N  | N  | N  | N  |
+|     awvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     awaddr_reg      | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      awlen_reg      | Flip-flop |   8   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       cur_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       rem_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       cnt_reg       | Flip-flop |   5   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       err_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_wr_engine)
+Current design is 'dma_top'.
+
+  Linking design 'dma_top'
+  Using the following designs and libraries:
+  --------------------------------------------------------------------------
+  * (6 designs)               /home/a33939_asu/Personal/axi4-dma-asic/synth/build/dma_top.db, etc
+  gscl45nm (library)          /usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db
+  dw_foundation.sldb (library) /usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/dw_foundation.sldb
+
+Information: Uniquified 2 instances of design 'cdc_pulse'. (OPT-1056)
+CDC crossing constrained: fifo_wptr_to_read
+CDC crossing constrained: fifo_rptr_to_write
+CDC crossing constrained: start_toggle
+CDC crossing constrained: done_toggle
+CDC crossing constrained: write_error_flag
+FIX_HOLD: off (set DC_FIX_HOLD=1 to turn it on)
+Writing ddc file 'results/dma_top_elaborated.ddc'.
+Information: Performing leakage power optimization. (PWR-850)
+Alib files are up-to-date.
+Information: Evaluating DesignWare library utilization. (UISN-27)
+
+============================================================================
+| DesignWare Building Block Library  |         Version         | Available |
+============================================================================
+| Basic DW Building Blocks           | V-2023.12-DWBB_202312.5 |     *     |
+| Licensed DW Building Blocks        | V-2023.12-DWBB_202312.5 |     *     |
+============================================================================
+
+====================================================================================================
+| Flow Information                                                                                 |
+----------------------------------------------------------------------------------------------------
+| Flow         | Design Compiler WLM                                                               |
+| Command Line | compile_ultra -no_autoungroup                                                     |
+====================================================================================================
+| Design Information                                      | Value                                  |
+====================================================================================================
+| Number of Scenarios                                     | 0                                      |
+| Leaf Cell Count                                         | 3145                                   |
+| Number of User Hierarchies                              | 6                                      |
+| Sequential Cell Count                                   | 2503                                   |
+| Macro Count                                             | 0                                      |
+| Number of Power Domains                                 | 0                                      |
+| Number of Path Groups                                   | 3                                      |
+| Number of VT Class                                      | 0                                      |
+| Number of Clocks                                        | 2                                      |
+| Number of Dont Touch Cells                              | 95                                     |
+| Number of Dont Touch Nets                               | 0                                      |
+| Number of Size Only Cells                               | 0                                      |
+| Design with UPF Data                                    | false                                  |
+====================================================================================================
+Information: Sequential output inversion is enabled.  SVF file must be used for formal verification. (OPT-1208)
+
+Information: There are 171 potential problems in your design. Please run 'check_design' for more information. (LINT-99)
+
+  Simplifying Design 'dma_top'
+
+Loaded alib file './alib-52/gscl45nm.db.alib'
+Information: State dependent leakage is now switched from on to off.
+
+  Beginning Pass 1 Mapping
+  ------------------------
+  Processing 'async_fifo_DW64_AW5'
+Information: Added key list 'DesignWare' to design 'async_fifo_DW64_AW5'. (DDB-72)
+ Implement Synthetic for 'async_fifo_DW64_AW5'.
+Warning: No negative phase latch in library for Cell g_entry[0].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[8].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[16].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[24].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[2].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[10].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[18].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[26].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[4].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[12].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[20].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[28].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[6].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[14].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[22].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[30].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[1].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[9].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[17].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[25].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[3].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[11].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[19].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[27].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[5].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[13].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[21].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[29].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[7].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[15].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[23].en_l_reg. The clock phase would be changed. (OPT-1231)
+Warning: No negative phase latch in library for Cell g_entry[31].en_l_reg. The clock phase would be changed. (OPT-1231)
+  Processing 'dma_regs'
+  Processing 'dma_wr_engine'
+Information: In design 'dma_wr_engine', the register 'awlen_reg[6]' is removed because it is merged to 'awlen_reg[5]'. (OPT-1215)
+Information: In design 'dma_wr_engine', the register 'awlen_reg[7]' is removed because it is merged to 'awlen_reg[5]'. (OPT-1215)
+ Implement Synthetic for 'dma_wr_engine'.
+Information: Added key list 'DesignWare' to design 'dma_wr_engine'. (DDB-72)
+  Processing 'dma_rd_engine'
+Information: Added key list 'DesignWare' to design 'dma_rd_engine'. (DDB-72)
+Information: In design 'dma_rd_engine', the register 'arlen_reg[6]' is removed because it is merged to 'arlen_reg[5]'. (OPT-1215)
+Information: In design 'dma_rd_engine', the register 'arlen_reg[7]' is removed because it is merged to 'arlen_reg[5]'. (OPT-1215)
+ Implement Synthetic for 'dma_rd_engine'.
+  Processing 'dma_top'
+  Processing 'cdc_pulse_0'
+  Processing 'cdc_pulse_1'
+
+  Updating timing information
+Information: Updating design information... (UID-85)
+Information: Complementing port 's_awready' in design 'dma_regs'.
+	 The new name of the port is 's_awready_BAR'. (OPT-319)
+Information: Complementing port 's_wready' in design 'dma_regs'.
+	 The new name of the port is 's_wready_BAR'. (OPT-319)
+Information: Complementing port 's_bvalid' in design 'dma_regs'.
+	 The new name of the port is 's_bvalid_BAR'. (OPT-319)
+Information: Complementing port 's_rdata[4]' in design 'dma_regs'.
+	 The new name of the port is 's_rdata[4]_BAR'. (OPT-319)
+Information: Complementing port 's_rdata[3]' in design 'dma_regs'.
+	 The new name of the port is 's_rdata[3]_BAR'. (OPT-319)
+Information: Complementing port 's_rdata[2]' in design 'dma_regs'.
+	 The new name of the port is 's_rdata[2]_BAR'. (OPT-319)
+Information: Complementing port 's_rvalid' in design 'dma_regs'.
+	 The new name of the port is 's_rvalid_BAR'. (OPT-319)
+Information: Complementing port 'araddr[31]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[31]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[30]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[30]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[29]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[29]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[28]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[28]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[27]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[27]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[26]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[26]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[25]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[25]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[24]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[24]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[23]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[23]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[22]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[22]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[21]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[21]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[20]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[20]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[19]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[19]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[18]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[18]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[17]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[17]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[16]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[16]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[15]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[15]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[14]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[14]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[13]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[13]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[12]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[12]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[11]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[11]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[10]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[10]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[9]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[9]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[8]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[8]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[7]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[7]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[6]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[6]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[5]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[5]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[4]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[4]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[3]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[3]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[2]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[2]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[1]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[1]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[0]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[0]_BAR'. (OPT-319)
+Information: Complementing port 'arlen[0]' in design 'dma_rd_engine'.
+	 The new name of the port is 'arlen[0]_BAR'. (OPT-319)
+Information: Complementing port 'arvalid' in design 'dma_rd_engine'.
+	 The new name of the port is 'arvalid_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[31]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[31]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[30]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[30]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[29]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[29]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[28]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[28]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[27]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[27]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[26]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[26]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[25]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[25]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[24]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[24]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[23]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[23]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[22]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[22]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[21]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[21]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[20]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[20]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[19]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[19]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[18]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[18]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[17]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[17]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[16]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[16]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[15]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[15]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[14]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[14]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[13]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[13]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[12]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[12]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[11]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[11]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[10]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[10]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[9]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[9]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[8]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[8]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[7]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[7]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[6]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[6]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[5]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[5]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[4]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[4]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[3]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[3]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[2]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[2]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[1]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[1]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[0]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[0]_BAR'. (OPT-319)
+Information: Complementing port 'awlen[0]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awlen[0]_BAR'. (OPT-319)
+Information: Complementing port 'rd_err' in design 'dma_regs'.
+	 The new name of the port is 'rd_err_BAR'. (OPT-319)
+Information: Complementing port 'err' in design 'dma_rd_engine'.
+	 The new name of the port is 'err_BAR'. (OPT-319)
+Information: Complementing port 'fifo_wfull' in design 'dma_rd_engine'.
+	 The new name of the port is 'fifo_wfull_BAR'. (OPT-319)
+Information: Complementing port 'wfull' in design 'async_fifo_DW64_AW5'.
+	 The new name of the port is 'wfull_BAR'. (OPT-319)
+Information: Complementing port 'fifo_rempty' in design 'dma_wr_engine'.
+	 The new name of the port is 'fifo_rempty_BAR'. (OPT-319)
+Information: Complementing port 'rempty' in design 'async_fifo_DW64_AW5'.
+	 The new name of the port is 'rempty_BAR'. (OPT-319)
+
+  Beginning Mapping Optimizations  (Ultra High effort)
+  -------------------------------
+  Mapping Optimization (Phase 1)
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:00:07   32197.3      0.00       0.0    7180.5                           196258.4531
+    0:00:07   32189.8      0.00       0.0    7167.1                           196242.2969
+
+  Beginning Constant Register Removal
+  -----------------------------------
+
+  Beginning Global Optimizations
+  ------------------------------
+  Numerical Synthesis (Phase 1)
+  Numerical Synthesis (Phase 2)
+  Global Optimization (Phase 1)
+  Global Optimization (Phase 2)
+  Global Optimization (Phase 3)
+  Global Optimization (Phase 4)
+  Global Optimization (Phase 5)
+  Global Optimization (Phase 6)
+  Global Optimization (Phase 7)
+  Global Optimization (Phase 8)
+  Global Optimization (Phase 9)
+  Global Optimization (Phase 10)
+  Global Optimization (Phase 11)
+  Global Optimization (Phase 12)
+  Global Optimization (Phase 13)
+  Global Optimization (Phase 14)
+  Global Optimization (Phase 15)
+  Global Optimization (Phase 16)
+  Global Optimization (Phase 17)
+  Global Optimization (Phase 18)
+  Global Optimization (Phase 19)
+  Global Optimization (Phase 20)
+  Global Optimization (Phase 21)
+  Global Optimization (Phase 22)
+  Global Optimization (Phase 23)
+  Global Optimization (Phase 24)
+  Global Optimization (Phase 25)
+  Global Optimization (Phase 26)
+  Global Optimization (Phase 27)
+  Global Optimization (Phase 28)
+  Global Optimization (Phase 29)
+  Global Optimization (Phase 30)
+  Global Optimization (Phase 31)
+
+  Beginning Isolate Ports
+  -----------------------
+
+  Beginning Delay Optimization
+  ----------------------------
+    0:00:08   30025.3      0.00       0.0    6906.9                           180067.9375
+    0:00:08   30025.3      0.00       0.0    6906.9                           180067.9375
+    0:00:08   30025.3      0.00       0.0    6906.9                           180067.9375
+    0:00:08   30025.3      0.00       0.0    6906.9                           180067.9375
+    0:00:08   30023.9      0.00       0.0    6904.6                           180064.5625
+    0:00:08   30023.9      0.00       0.0    6904.6                           180064.5625
+
+  Beginning WLM Backend Optimization
+  --------------------------------------
+    0:00:09   29826.4      0.00       0.0    6904.6                           178625.6719
+    0:00:09   29826.4      0.00       0.0    6904.6                           178625.6719
+    0:00:09   29826.4      0.00       0.0    6904.6                           178625.6719
+    0:00:09   29826.4      0.00       0.0    6904.6                           178625.6719
+    0:00:09   29826.4      0.00       0.0    6904.6                           178625.6719
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+
+
+  Beginning Design Rule Fixing  (max_capacitance)
+  ----------------------------
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:00:09   29825.9      0.00       0.0    6905.2                           178616.7188
+  Global Optimization (Phase 32)
+  Global Optimization (Phase 33)
+  Global Optimization (Phase 34)
+    0:00:12   31076.1      0.00       0.0    4647.9                           187522.1562
+    0:00:12   31076.1      0.00       0.0    4647.9                           187522.1562
+    0:00:12   31186.4      0.00       0.0    4647.9                           188420.5781
+    0:00:12   31186.4      0.00       0.0    4647.9                           188420.5781
+    0:00:12   31186.4      0.00       0.0    4647.9                           188420.5781
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:12   31064.4      0.00       0.0    4681.9                           186570.4062
+    0:00:13   31328.1      0.00       0.0    4186.5 u_rd/net8608              189251.4844
+    0:00:13   31461.9      0.00       0.0    4056.8                           190391.9531
+    0:00:13   31461.9      0.00       0.0    4056.8                           190391.9531
+    0:00:13   31461.9      0.00       0.0    4056.8                           190391.9531
+    0:00:13   31461.9      0.00       0.0    4056.8                           190391.9531
+    0:00:13   31461.9      0.00       0.0    4056.8                           190391.9531
+    0:00:13   31461.9      0.00       0.0    4056.8                           190391.9531
+    0:00:13   31458.1      0.00       0.0    4057.4                           190320.3750
+Loading db file '/usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db'
+
+
+Note: Symbol # after min delay cost means estimated hold TNS across all active scenarios 
+
+
+  Optimization Complete
+  ---------------------
+Information: State dependent leakage is now switched from off to on.
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+Information: Total number of MV cells in the design.
+----------------------------------------------------------------------------------------------------
+ MV Cells                                           Total Number                                   
+----------------------------------------------------------------------------------------------------
+ Level Shifter:                                     0                                             
+ Enable Level Shifter:                              0                                             
+ Isolation Cell:                                    0                                             
+ Retention Cell:                                    0                                             
+ Retention Clamp Cell:                              0                                             
+ Switch Cell:                                       0                                             
+ Always-On Cell:                                    0                                             
+ Repeater Cell:                                     0                                             
+
+----------------------------------------------------------------------------------------------------
+Unmapped MV Cells 
+----------------------------------------------------------------------------------------------------
+0 Isolation Cells are unmapped 
+0 Retention Clamp Cells are unmapped 
+----------------------------------------------------------------------------------------------------
+Warning: In the design dma_top, net 's_bresp[1]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_top, net 'm_wstrb[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_top, net 's_wready' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[63]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[62]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[61]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[60]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[59]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[58]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[57]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[56]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[55]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[54]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[53]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[52]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[51]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[50]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[49]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[48]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[47]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[46]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[45]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[44]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[43]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[42]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[41]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[40]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[39]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[38]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[37]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[36]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[35]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[34]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[33]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[32]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[31]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[30]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[29]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[28]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[27]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[26]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[25]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[24]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[23]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[22]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[21]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[20]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[19]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[18]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[17]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[16]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[15]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[14]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[13]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[12]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[11]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[10]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[9]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[8]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[6]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[5]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[4]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[3]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[2]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[1]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[0]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'fifo_wfull' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'arlen[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[63]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[62]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[61]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[60]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[59]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[58]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[57]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[56]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[55]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[54]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[53]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[52]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[51]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[50]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[49]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[48]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[47]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[46]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[45]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[44]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[43]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[42]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[21]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[20]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[19]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[18]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[17]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[16]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[15]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[14]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[13]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[12]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[11]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[10]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[9]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[8]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[6]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[5]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[4]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[3]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[2]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[1]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[0]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'awlen[7]' is connecting multiple ports. (UCN-1)
+Writing ddc file 'results/dma_top.ddc'.
+Writing verilog file '/home/a33939_asu/Personal/axi4-dma-asic/synth/build/results/dma_top.v'.
+Warning: Verilog 'assign' or 'tran' statements are written out. (VO-4)
+Synthesis complete: /home/a33939_asu/Personal/axi4-dma-asic/synth/build
+exit 0
+
+Memory usage for this session 162 Mbytes.
+Memory usage for this session including child processes 175 Mbytes.
+CPU usage for this session 15 seconds ( 0.00 hours ).
+Elapsed time for this session 19 seconds ( 0.01 hours ).
+
+Thank you...

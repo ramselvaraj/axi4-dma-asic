@@ -1,0 +1,1872 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 20
+Design : dma_top
+Version: V-2023.12-SP5-1
+Date   : Mon Oct 26 05:18:01 2026
+****************************************
+
+Operating Conditions: typical   Library: gscl45nm
+Wire Load Model Mode: top
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_15__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U50/Y (AND2X1)                                   0.03       2.33 f
+  u_fifo/U51/Y (INVX1)                                    0.03       2.36 r
+  u_fifo/U52/Y (OR2X1)                                    0.04       2.39 r
+  u_fifo/U53/Y (INVX1)                                    0.03       2.43 f
+  u_fifo/U333/Y (NAND2X1)                                 0.04       2.46 r
+  u_fifo/U334/Y (INVX1)                                   0.02       2.48 f
+  u_fifo/g_entry_15__en_l_reg/D (LATCH)                   0.00       2.48 f
+  data arrival time                                                  2.48
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_15__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.48
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.02
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.83   
+  --------------------------------------------------------------
+  max time borrow                                         5.83   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_31__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U50/Y (AND2X1)                                   0.03       2.33 f
+  u_fifo/U51/Y (INVX1)                                    0.03       2.36 r
+  u_fifo/U52/Y (OR2X1)                                    0.04       2.39 r
+  u_fifo/U53/Y (INVX1)                                    0.03       2.43 f
+  u_fifo/U276/Y (AND2X1)                                  0.04       2.47 f
+  u_fifo/g_entry_31__en_l_reg/D (LATCH)                   0.00       2.47 f
+  data arrival time                                                  2.47
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_31__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.47
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.03
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.47   
+  --------------------------------------------------------------
+  max time borrow                                         5.47   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_3__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U110/Y (AND2X1)                                  0.03       2.33 f
+  u_fifo/U111/Y (INVX1)                                   0.03       2.36 r
+  u_fifo/U318/Y (NOR2X1)                                  0.01       2.38 f
+  u_fifo/g_entry_3__en_l_reg/D (LATCH)                    0.00       2.38 f
+  data arrival time                                                  2.38
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_3__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.38
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.12
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.94   
+  --------------------------------------------------------------
+  max time borrow                                         5.94   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_11__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U110/Y (AND2X1)                                  0.03       2.33 f
+  u_fifo/U111/Y (INVX1)                                   0.03       2.36 r
+  u_fifo/U329/Y (NOR2X1)                                  0.01       2.38 f
+  u_fifo/g_entry_11__en_l_reg/D (LATCH)                   0.00       2.38 f
+  data arrival time                                                  2.38
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_11__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.38
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.12
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.95   
+  --------------------------------------------------------------
+  max time borrow                                         5.95   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_19__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U110/Y (AND2X1)                                  0.03       2.33 f
+  u_fifo/U111/Y (INVX1)                                   0.03       2.36 r
+  u_fifo/U338/Y (NOR2X1)                                  0.01       2.38 f
+  u_fifo/g_entry_19__en_l_reg/D (LATCH)                   0.00       2.38 f
+  data arrival time                                                  2.38
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_19__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.38
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.12
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.94   
+  --------------------------------------------------------------
+  max time borrow                                         5.94   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_27__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U110/Y (AND2X1)                                  0.03       2.33 f
+  u_fifo/U111/Y (INVX1)                                   0.03       2.36 r
+  u_fifo/U346/Y (NOR2X1)                                  0.01       2.38 f
+  u_fifo/g_entry_27__en_l_reg/D (LATCH)                   0.00       2.38 f
+  data arrival time                                                  2.38
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_27__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.38
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.12
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.95   
+  --------------------------------------------------------------
+  max time borrow                                         5.95   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_7__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U50/Y (AND2X1)                                   0.03       2.33 f
+  u_fifo/U51/Y (INVX1)                                    0.03       2.36 r
+  u_fifo/U325/Y (NOR2X1)                                  0.01       2.37 f
+  u_fifo/g_entry_7__en_l_reg/D (LATCH)                    0.00       2.37 f
+  data arrival time                                                  2.37
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_7__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.13
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.94   
+  --------------------------------------------------------------
+  max time borrow                                         5.94   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_23__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U41/Y (OR2X1)                                    0.04       2.27 r
+  u_fifo/U42/Y (INVX1)                                    0.03       2.30 f
+  u_fifo/U50/Y (AND2X1)                                   0.03       2.33 f
+  u_fifo/U51/Y (INVX1)                                    0.03       2.36 r
+  u_fifo/U342/Y (NOR2X1)                                  0.01       2.37 f
+  u_fifo/g_entry_23__en_l_reg/D (LATCH)                   0.00       2.37 f
+  data arrival time                                                  2.37
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_23__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.13
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.94   
+  --------------------------------------------------------------
+  max time borrow                                         5.94   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_5__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U321/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U49/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U322/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_5__en_l_reg/D (LATCH)                    0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_5__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_13__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U321/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U49/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U331/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_13__en_l_reg/D (LATCH)                   0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_13__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_21__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U321/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U49/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U340/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_21__en_l_reg/D (LATCH)                   0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_21__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_29__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U321/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U49/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U348/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_29__en_l_reg/D (LATCH)                   0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_29__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_1__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U314/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U47/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U315/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_1__en_l_reg/D (LATCH)                    0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_1__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_9__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U314/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U47/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U327/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_9__en_l_reg/D (LATCH)                    0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_9__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_17__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U314/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U47/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U336/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_17__en_l_reg/D (LATCH)                   0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_17__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_25__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U3/Y (AND2X1)                                    0.03       2.20 f
+  u_fifo/U35/Y (INVX1)                                    0.00       2.20 r
+  u_fifo/U33/Y (INVX1)                                    0.01       2.21 f
+  u_fifo/U34/Y (INVX1)                                    0.02       2.23 r
+  u_fifo/U313/Y (INVX1)                                   0.02       2.25 f
+  u_fifo/U314/Y (NAND3X1)                                 0.04       2.28 r
+  u_fifo/U47/Y (BUFX2)                                    0.05       2.33 r
+  u_fifo/U344/Y (NOR2X1)                                  0.01       2.34 f
+  u_fifo/g_entry_25__en_l_reg/D (LATCH)                   0.00       2.34 f
+  data arrival time                                                  2.34
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_25__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.34
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.16
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_0__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U260/Y (AND2X1)                                  0.05       2.22 f
+  u_fifo/U311/Y (NAND3X1)                                 0.04       2.27 r
+  u_fifo/U46/Y (BUFX2)                                    0.05       2.31 r
+  u_fifo/U312/Y (NOR2X1)                                  0.01       2.33 f
+  u_fifo/g_entry_0__en_l_reg/D (LATCH)                    0.00       2.33 f
+  data arrival time                                                  2.33
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_0__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.33
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.17
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_8__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U260/Y (AND2X1)                                  0.05       2.22 f
+  u_fifo/U311/Y (NAND3X1)                                 0.04       2.27 r
+  u_fifo/U46/Y (BUFX2)                                    0.05       2.31 r
+  u_fifo/U326/Y (NOR2X1)                                  0.01       2.33 f
+  u_fifo/g_entry_8__en_l_reg/D (LATCH)                    0.00       2.33 f
+  data arrival time                                                  2.33
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_8__en_l_reg/CLK (LATCH)                  0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.33
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.17
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_16__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U260/Y (AND2X1)                                  0.05       2.22 f
+  u_fifo/U311/Y (NAND3X1)                                 0.04       2.27 r
+  u_fifo/U46/Y (BUFX2)                                    0.05       2.31 r
+  u_fifo/U335/Y (NOR2X1)                                  0.01       2.33 f
+  u_fifo/g_entry_16__en_l_reg/D (LATCH)                   0.00       2.33 f
+  data arrival time                                                  2.33
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_16__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.33
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.17
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: m_rvalid (input port clocked by clk_rd)
+  Endpoint: u_fifo/g_entry_24__en_l_reg
+            (positive level-sensitive latch clocked by clk_rd')
+  Path Group: clk_rd
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_rd (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                    2.00       2.00 f
+  m_rvalid (in)                                           0.00       2.00 f
+  u_rd/rvalid (dma_rd_engine)                             0.00       2.00 f
+  u_rd/U226/Y (AND2X1)                                    0.13       2.13 f
+  u_rd/fifo_winc (dma_rd_engine)                          0.00       2.13 f
+  u_fifo/winc (async_fifo_DW64_AW5)                       0.00       2.13 f
+  u_fifo/U273/Y (AND2X1)                                  0.04       2.17 f
+  u_fifo/U260/Y (AND2X1)                                  0.05       2.22 f
+  u_fifo/U311/Y (NAND3X1)                                 0.04       2.27 r
+  u_fifo/U46/Y (BUFX2)                                    0.05       2.31 r
+  u_fifo/U343/Y (NOR2X1)                                  0.01       2.33 f
+  u_fifo/g_entry_24__en_l_reg/D (LATCH)                   0.00       2.33 f
+  data arrival time                                                  2.33
+
+  clock clk_rd' (rise edge)                               5.00       5.00
+  clock network delay (ideal)                             0.00       5.00
+  clock uncertainty                                      -0.50       4.50
+  u_fifo/g_entry_24__en_l_reg/CLK (LATCH)                 0.00       4.50 r
+  time borrowed from endpoint                             0.00       4.50
+  data required time                                                 4.50
+  --------------------------------------------------------------------------
+  data required time                                                 4.50
+  data arrival time                                                 -2.33
+  --------------------------------------------------------------------------
+  slack (MET)                                                        2.17
+
+  Time Borrowing Information
+  --------------------------------------------------------------
+  clk_rd' nominal pulse width                             5.00   
+  library setup time                                      0.96   
+  --------------------------------------------------------------
+  max time borrow                                         5.96   
+  actual time borrow                                      0.00   
+  --------------------------------------------------------------
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[61]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U2006/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U132/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U133/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U2007/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U2025/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U97/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U98/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[61] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[61] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[61] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[61] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[60]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1982/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U134/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U135/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1983/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U2001/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U95/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U96/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[60] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[60] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[60] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[60] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[59]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1958/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U136/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U137/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1959/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1977/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U93/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U94/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[59] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[59] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[59] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[59] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[58]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1934/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U138/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U139/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1935/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1953/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U91/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U92/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[58] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[58] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[58] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[58] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[57]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1910/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U140/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U141/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1911/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1929/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U89/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U90/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[57] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[57] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[57] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[57] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[56]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1886/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U142/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U143/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1887/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1905/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U87/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U88/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[56] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[56] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[56] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[56] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[55]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1862/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U144/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U145/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1863/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1881/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U85/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U86/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[55] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[55] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[55] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[55] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[54]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1838/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U146/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U147/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1839/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1857/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U84/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U83/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[54] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[54] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[54] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[54] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[53]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1814/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U148/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U149/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1815/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1833/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U81/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U82/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[53] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[53] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[53] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[53] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[52]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1790/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U150/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U151/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1791/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1809/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U79/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U80/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[52] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[52] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[52] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[52] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[51]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1766/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U152/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U153/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1767/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1785/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U77/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U78/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[51] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[51] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[51] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[51] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[50]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1742/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U154/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U155/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1743/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1761/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U75/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U76/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[50] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[50] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[50] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[50] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[49]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1718/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U156/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U157/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1719/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1737/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U73/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U74/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[49] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[49] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[49] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[49] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[48]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1694/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U158/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U159/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1695/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1713/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U71/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U72/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[48] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[48] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[48] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[48] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[47]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1670/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U160/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U161/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1671/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1689/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U69/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U70/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[47] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[47] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[47] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[47] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[46]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1646/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U162/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U163/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1647/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1665/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U67/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U68/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[46] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[46] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[46] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[46] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[45]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1622/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U164/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U165/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1623/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1641/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U65/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U66/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[45] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[45] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[45] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[45] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[44]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1598/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U166/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U167/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1599/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1617/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U64/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U63/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[44] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[44] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[44] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[44] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[43]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1574/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U168/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U169/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1575/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1593/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U61/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U62/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[43] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[43] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[43] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[43] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+  Startpoint: u_fifo/rbin_reg_1_
+              (rising edge-triggered flip-flop clocked by clk_wr)
+  Endpoint: m_wdata[42]
+            (output port clocked by clk_wr)
+  Path Group: clk_wr
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk_wr (rise edge)                                0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  u_fifo/rbin_reg_1_/CLK (DFFSR)                          0.00       0.00 r
+  u_fifo/rbin_reg_1_/Q (DFFSR)                            0.16       0.16 r
+  u_fifo/U107/Y (BUFX2)                                   0.05       0.20 r
+  u_fifo/U116/Y (AND2X1)                                  0.04       0.24 r
+  u_fifo/U117/Y (INVX1)                                   0.05       0.29 f
+  u_fifo/U449/Y (OR2X1)                                   0.05       0.35 f
+  u_fifo/U450/Y (INVX1)                                   0.58       0.92 r
+  u_fifo/U1550/Y (AOI22X1)                                0.18       1.11 f
+  u_fifo/U170/Y (BUFX2)                                   0.07       1.18 f
+  u_fifo/U171/Y (AND2X1)                                  0.05       1.22 f
+  u_fifo/U1551/Y (NAND3X1)                                0.03       1.26 r
+  u_fifo/U1569/Y (NOR3X1)                                 0.04       1.30 f
+  u_fifo/U59/Y (AND2X1)                                   0.04       1.34 f
+  u_fifo/U60/Y (INVX1)                                    0.03       1.37 r
+  u_fifo/rdata[42] (async_fifo_DW64_AW5)                  0.00       1.37 r
+  u_wr/fifo_rdata[42] (dma_wr_engine)                     0.00       1.37 r
+  u_wr/wdata[42] (dma_wr_engine)                          0.00       1.37 r
+  m_wdata[42] (out)                                       0.00       1.37 r
+  data arrival time                                                  1.37
+
+  clock clk_wr (rise edge)                                8.00       8.00
+  clock network delay (ideal)                             0.00       8.00
+  clock uncertainty                                      -0.40       7.60
+  output external delay                                  -1.60       6.00
+  data required time                                                 6.00
+  --------------------------------------------------------------------------
+  data required time                                                 6.00
+  data arrival time                                                 -1.37
+  --------------------------------------------------------------------------
+  slack (MET)                                                        4.63
+
+
+1

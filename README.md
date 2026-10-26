@@ -324,10 +324,31 @@ comes from an input pin, so hold is no longer a problem for the storage.
 - The design now contains 32 latches (one per entry).
 - Simulation passes: the directed test and all 40 randomized runs, and two
   injected clock-gate bugs are caught.
-- Not run in Design Compiler yet. The library must have a latch cell, and the
-  32 latch enables may show a few hold violations of their own.
 - Gated clocks need care in clock tree synthesis. A library clock-gating cell
   would be better than this latch and AND gate in a real flow.
+
+### Run 5 results (`synth/run5-gated/`)
+
+Gated-clock FIFO storage, same constraints and clocks as run 2.
+
+| Item | Run 2 | Run 4 (DC hold fix) | Run 5 (gated FIFO) |
+|------|-------|---------------------|--------------------|
+| Area | 40,861 um2 | 101,314 um2 | **31,458 um2** |
+| `async_fifo` area | 32,130 um2 | 90,084 um2 | 22,702 um2 |
+| Cells | 10,833 | 36,459 | 6,740 |
+| Hold violations (`clk_rd` / `clk_wr`) | 2,314 / 127 | 0 / 0 | 268 / 126 |
+| Worst hold violation | -0.37 ns | 0 | -0.17 ns |
+| Setup slack, `clk_rd` (10 ns) | 3.02 ns | 0.01 ns | 2.02 ns |
+| Setup slack, `clk_wr` (8 ns) | 4.59 ns | 4.58 ns | 4.63 ns |
+| Latches | 0 | 0 | 32 |
+
+- All five CDC constraints matched, and `check_timing` has no warnings.
+- The library has a latch cell (`LATCH`). DC mapped all 32 clock-gate latches.
+- None of the remaining hold violations are in the FIFO storage. They are plain
+  register-to-register paths with almost no logic: address and counter registers,
+  and the back-to-back flip-flops of the synchronizers. Their worst case is
+  -0.17 ns. Clock tree synthesis and the layout hold fix handle these.
+- Max-capacitance violations fell from 4,531 to 2,504 because there are fewer nets.
 
 Things to know:
 

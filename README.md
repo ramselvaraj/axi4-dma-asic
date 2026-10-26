@@ -233,7 +233,11 @@ source synth/env.sh        # or: source synth/env.csh
 make dc-elab               # analyze, elaborate, link, check_design
 make dc                    # full compile_ultra
 make dc-report             # rewrite reports from the saved mapped design
+make dc-collect RUN=run2   # copy reports to synth/run2 so they can be committed
 ```
+
+`make dc` runs `dc_shell` inside `synth/build/`, so `command.log`,
+`default.svf` and `filenames.log` stay out of the repository root.
 
 `env.sh` sets `DC_HOME`, `PDK_DIR`, the license server and `TARGET_LIBRARY`
 (FreePDK45 `gscl45nm.db`). Variables you can override before running:
@@ -242,27 +246,74 @@ make dc-report             # rewrite reports from the saved mapped design
 |----------|---------|---------|
 | `DC_RD_PERIOD` | 10.0 | `clk_rd` period in ns |
 | `DC_WR_PERIOD` | 8.0 | `clk_wr` period in ns |
+| `DC_HOLD_UNCERTAINTY` | 0.1 | hold uncertainty on both clocks, in ns |
+| `DC_FIX_HOLD` | 0 | set to 1 to let `compile_ultra` insert hold delay cells |
 | `DC_OUT_DIR` | `synth/build` | where results and reports go |
 | `DC_OUTPUT_LOAD` | 0.01 | load on every output port |
 
 Results land in `synth/build/` (`results/dma_top.v`, `.ddc`, `.sdc`, and
 `reports/area.rpt`, `timing.rpt`, `qor.rpt` and others).
 
-Constraints are in `synth/constraints.tcl`: one clock per domain, 5% uncertainty,
-20% input and output delays, and the two clocks set as asynchronous with
-`set_clock_groups`. Ports are assigned to a clock by name, so if you rename a
-write-side port, update the lists at the top of that file.
+### Constraints
+
+`synth/constraints.tcl` has one clock per domain, 5% setup uncertainty, 20% input
+and output delays, and a list of every clock crossing. Ports are assigned to a
+clock by name, so if you rename a write-side port, update the lists at the top
+of that file.
+
+The clocks are not set with `set_clock_groups -asynchronous`. That command acts
+as a false path, and a false path overrides `set_max_delay`. Each crossing is
+listed instead:
+
+| Crossing | Constraint |
+|----------|------------|
+| FIFO Gray-code pointers, both directions | `set_max_delay` of the shorter clock period, hold false path |
+| START and DONE toggles | same |
+| Write error flag to `clk_rd` | same |
+| FIFO storage to the write side | false path (the pointers keep the data stable) |
+| `SRC_ADDR`, `DST_ADDR`, `LEN` to the write side | false path (locked while busy) |
+
+A crossing that is not in the list is timed as if the clocks were related. If
+a report shows a path from one clock to the other, a crossing was missed. The
+script prints `CDC crossing constrained: <name>` for each match and
+`WARNING: CDC constraint matched no cells` if a name pattern finds nothing.
+
+### Run 1 results (`synth/run1/`)
+
+First run, with the old constraints (10 ns and 8 ns, asynchronous clock groups).
+
+| Item | Result |
+|------|--------|
+| Setup, `clk_rd` | met, 2.83 ns slack |
+| Setup, `clk_wr` | met, 4.60 ns slack |
+| Area | 40,851 um2, 10,841 cells, 2,465 flip-flops, no latches |
+| Largest block | `async_fifo`, 78.7% of the area |
+| Hold | 2,316 violations on `clk_rd`, 134 on `clk_wr`, worst -0.77 ns |
+| Max capacitance | 4,509 nets, limit shown as 0 on flip-flop outputs |
+
+Most of the area is the 32 x 64 FIFO storage, which is built from flip-flops
+because there is no SRAM macro.
+
+The hold violations are pre-layout effects. The clock is ideal, the library hold
+time of the flip-flop is 0.40 ns, and run 1 used 0.5 ns of hold uncertainty. The
+worst path is a FIFO storage flip-flop that feeds its own input through a hold
+mux. Hold is normally fixed after clock tree synthesis. Run 2 lowers the hold
+uncertainty to 0.1 ns. Set `DC_FIX_HOLD=1` to see what DC does about it, at the
+cost of more area.
+
+The max-capacitance violations list a required capacitance of exactly 0 on
+flip-flop outputs. This looks like a property of the library and not a design
+fault. It has not been checked in the library file.
+
+The critical setup path is `m_rvalid` to the write enable of all 2,048 FIFO
+flip-flops. The flip-flop setup time in this library is 2.9 ns. Try
+`DC_RD_PERIOD=7 DC_WR_PERIOD=6 make dc` to find the limit.
 
 Things to know:
 
-- The scripts have not been run yet. `dc_shell` is only on the lab server, so
-  the first run may need fixes to the Tcl, and the default clock periods are a
-  starting point, not a target that has been met.
-- With the clocks set asynchronous, DC does not check the FIFO pointer
-  crossings. Those paths still need a max-delay constraint or a review in the
-  physical flow.
-- The 32x64 FIFO storage is built from flip-flops here, since there is no SRAM
-  macro. It will dominate the area report.
+- Run 2, with the per-crossing constraints, has not been run yet.
+- Lint warnings in the reports are expected: unused address bits, `WSTRB` tied
+  to 1, and the unused `rlast` input.
 
 ## Ideas for later
 

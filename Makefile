@@ -4,7 +4,7 @@ RTL := $(shell cat rtl/files.txt)
 TB  := tb/axi4_mem_model.sv tb/tb_dma.sv
 
 .DEFAULT_GOAL := sim
-.PHONY: sim lint regress cov dc dc-elab dc-report wave clean
+.PHONY: sim lint regress cov dc dc-elab dc-report dc-collect wave clean
 
 # Simulation (Verilator)
 sim: obj_dir/Vtb_dma
@@ -50,14 +50,24 @@ lint:
 		-Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-SYNCASYNCNET $(RTL)
 
 # Design Compiler. Run "source synth/env.sh" first (csh: synth/env.csh).
+# dc_shell runs inside synth/build so command.log, default.svf and filenames.log
+# stay out of the repository root.
+DC_RUN = mkdir -p synth/build && cd synth/build && $(DC_SHELL) -f ../dc.tcl
+
 dc:
-	$(DC_SHELL) -f synth/dc.tcl
+	$(DC_RUN)
 
 dc-elab:
-	DC_ELAB_ONLY=1 $(DC_SHELL) -f synth/dc.tcl
+	DC_ELAB_ONLY=1 $(DC_RUN)
 
 dc-report:
-	DC_REPORT_ONLY=1 $(DC_SHELL) -f synth/dc.tcl
+	DC_REPORT_ONLY=1 $(DC_RUN)
+
+# Copy the reports to a tracked folder for review: make dc-collect RUN=run2
+RUN ?= run
+dc-collect:
+	mkdir -p synth/$(RUN)
+	cp synth/build/reports/*.rpt synth/build/results/dma_top.v synth/build/results/dma_top.sdc synth/$(RUN)/
 
 clean:
 	rm -rf obj_dir build tb_dma.vcd synth/build

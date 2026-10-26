@@ -3,3 +3,7 @@ build/
 synth/build/
 *.vcd
 *.dat
+command.log
+default.svf
+filenames.log
+*.svf

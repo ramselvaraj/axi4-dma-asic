@@ -66,7 +66,7 @@ constrain_crossing done_toggle $xing_delay {u_done_x/tgl_reg*}  {u_done_x/sync_r
 constrain_crossing write_error_flag $xing_delay {u_wr/err_reg*}      {wr_err_s1_reg*}
 
 # 2. false paths
-set mem_cells [cells_or_warn {u_fifo/mem_reg*}]
+set mem_cells [cells_or_warn {u_fifo/g_entry*q_reg*}]
 if {[sizeof_collection $mem_cells] > 0} {
     set_false_path -from $mem_cells -to [get_clocks clk_wr]
 }

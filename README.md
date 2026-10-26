@@ -309,9 +309,29 @@ The critical setup path is `m_rvalid` to the write enable of all 2,048 FIFO
 flip-flops. The flip-flop setup time in this library is 2.9 ns. Try
 `DC_RD_PERIOD=7 DC_WR_PERIOD=6 make dc` to find the limit.
 
+### FIFO storage uses gated clocks
+
+In runs 1 to 4, each FIFO storage flip-flop held its value through a feedback
+mux. That path is 0.14 ns, and the library flip-flop needs 0.40 ns of hold time,
+so all 2,048 storage flip-flops failed hold. Fixing it with delay cells made the
+design 2.5 times bigger (run 4: 101,314 um2).
+
+Now each FIFO entry has its own gated clock: a latch that is open while the
+clock is low, and an AND gate (`async_fifo.sv`, block `g_entry`). An entry loads
+`wdata` directly, only when it is written. There is no feedback mux, and the data
+comes from an input pin, so hold is no longer a problem for the storage.
+
+- The design now contains 32 latches (one per entry).
+- Simulation passes: the directed test and all 40 randomized runs, and two
+  injected clock-gate bugs are caught.
+- Not run in Design Compiler yet. The library must have a latch cell, and the
+  32 latch enables may show a few hold violations of their own.
+- Gated clocks need care in clock tree synthesis. A library clock-gating cell
+  would be better than this latch and AND gate in a real flow.
+
 Things to know:
 
-- Run 2, with the per-crossing constraints, has not been run yet.
+- Run 2 and run 4 were made before the gated-clock FIFO.
 - Lint warnings in the reports are expected: unused address bits, `WSTRB` tied
   to 1, and the unused `rlast` input.
 

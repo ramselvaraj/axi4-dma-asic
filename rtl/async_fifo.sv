@@ -10,7 +10,11 @@ module async_fifo #(
   output logic [DW-1:0] rdata,
   output logic          rempty
 );
-  logic [DW-1:0] mem [0:(1<<AW)-1];
+  // Storage: one gated clock per entry. A flop with no enable would need a
+  // feedback mux to hold its value, and that path is too fast for the library's
+  // hold time. With a gated clock, each entry loads wdata directly and only when
+  // it is written.
+  logic [DW-1:0] mem_q [0:(1<<AW)-1];
   logic [AW:0] wbin, wgray, rbin, rgray;
   logic [AW:0] wq1_rgray, wq2_rgray, rq1_wgray, rq2_wgray;
 
@@ -24,8 +28,27 @@ module async_fifo #(
     if (!wrst_n) begin wbin <= '0; wgray <= '0; end
     else         begin wbin <= wbin_n; wgray <= wgray_n; end
 
-  always_ff @(posedge wclk)
-    if (winc && !wfull) mem[wbin[AW-1:0]] <= wdata;
+  wire we = winc & ~wfull;
+
+  for (genvar i = 0; i < (1 << AW); i++) begin : g_entry
+    localparam logic [AW-1:0] IDX = AW'(i);
+    logic en, en_l, gclk;
+    logic [DW-1:0] q;
+
+    assign en = we && (wbin[AW-1:0] == IDX);
+
+    // Clock gate: the latch is open while wclk is low, so en cannot change the
+    // gated clock while wclk is high.
+    always_latch
+      if (!wclk) en_l = en;
+
+    assign gclk = wclk & en_l;
+
+    always_ff @(posedge gclk)
+      q <= wdata;
+
+    assign mem_q[i] = q;
+  end
 
   always_ff @(posedge wclk or negedge wrst_n)
     if (!wrst_n) {wq2_rgray, wq1_rgray} <= '0;
@@ -48,5 +71,5 @@ module async_fifo #(
     if (!rrst_n) rempty <= 1'b1;
     else         rempty <= (rgray_n == rq2_wgray);
 
-  assign rdata = mem[rbin[AW-1:0]];
+  assign rdata = mem_q[rbin[AW-1:0]];
 endmodule

@@ -1,0 +1,2094 @@
+mkdir -p synth/build && cd synth/build && dc_shell -f ../dc.tcl
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid this.
+
+                           Design Compiler Graphical 
+                                 DC Ultra (TM)
+                                  DFTMAX (TM)
+                              Power Compiler (TM)
+                                 DesignWare (R)
+                                 DC Expert (TM)
+                               Design Vision (TM)
+                               HDL Compiler (TM)
+                               VHDL Compiler (TM)
+                                  DFT Compiler
+                               Design Compiler(R)
+
+              Version V-2023.12-SP5-1 for linux64 - Sep 03, 2024 
+
+                    Copyright (c) 1988 - 2024 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+ Inc. This software may only be used in accordance with the terms and conditions
+ of a written license agreement with Synopsys, Inc. All other use, reproduction,
+   or distribution of this software is strictly prohibited.  Licensed Products
+     communicate with Synopsys servers for the purpose of providing software
+    updates, detecting software piracy and verifying that customers are using
+    Licensed Products in conformity with the applicable License Key for such
+  Licensed Products. Synopsys will use information gathered in connection with
+    this process to deliver software updates and pursue software pirates and
+                                   infringers.
+
+ Inclusivity & Diversity - Visit SolvNetPlus to read the "Synopsys Statement on
+            Inclusivity and Diversity" (Refer to article 000036315 at
+                        https://solvnetplus.synopsys.com)
+Initializing...
+Current time:       Mon Oct 26 05:05:42 2026
+Hostname:           nc-asu6-l03.apporto.com
+CPU Model:          Intel(R) Xeon(R) Platinum 8488C
+CPU Details:        Cores = 16 : Sockets = 1 : Cache Size = 107520 KB : Freq = 2.40 GHz
+OS:                 Linux 4.18.0-372.19.1.el8_6.x86_64
+RAM:                 61 GB (Free  23 GB)
+Swap:                 0 GB (Free   0 GB)
+Work Filesystem:    /home/a33939_asu mounted to nc-u24-nfs01.apporto.com:/homes/a33939_asu
+Tmp Filesystem:     /tmp mounted to tmpfs
+Work Disk:          3936 GB (Free 1420 GB)
+Tmp Disk:            30 GB (Free  30 GB)
+# Run from the repository root:  dc_shell -f synth/dc.tcl   (or: make dc)
+# Source synth/env.sh first. TARGET_LIBRARY is a Tcl list of absolute .db paths.
+#
+# DC_ELAB_ONLY=1    stop after elaboration and check_design
+# DC_REPORT_ONLY=1  reload the mapped DDC and rewrite the diagnostic reports
+# DC_OUT_DIR=path   output directory (default synth/build)
+set script_dir [file dirname [file normalize [info script]]]
+/home/a33939_asu/Personal/axi4-dma-asic/synth
+set repo_dir [file dirname $script_dir]
+/home/a33939_asu/Personal/axi4-dma-asic
+proc env_or {name fallback} {
+    if {[info exists ::env($name)] && $::env($name) ne ""} {
+        return $::env($name)
+    }
+    return $fallback
+}
+proc constraint_value {name fallback} {
+    set value [env_or $name $fallback]
+    if {![string is double -strict $value] || !($value >= 0 && $value < 1e9)} {
+        error "$name must be a finite nonnegative number."
+    }
+    return $value
+}
+proc report_diagnostics {} {
+    redirect -file reports/timing_hold.rpt {
+        report_timing -delay_type min -max_paths 10 -significant_digits 6
+    }
+    redirect -file reports/constraints_detailed.rpt {
+        report_constraint -all_violators -significant_digits 6
+    }
+    redirect -file reports/clock.rpt {report_clock -attributes}
+    redirect -file reports/ports.rpt {report_port -verbose [get_ports *]}
+    redirect -file reports/check_timing.rpt {check_timing}
+    write_sdc results/constraints_diagnostic.sdc
+}
+proc run_synthesis {} {
+    global repo_dir script_dir
+    set top dma_top
+
+    set libraries [env_or TARGET_LIBRARY {}]
+    if {[llength $libraries] == 0} {
+        error "Set TARGET_LIBRARY (source synth/env.sh)."
+    }
+    set extra_libraries [env_or LINK_LIBRARY {}]
+    foreach library [concat $libraries $extra_libraries] {
+        if {![file isfile $library] || [file pathtype $library] ne "absolute"} {
+            error "Library must be an existing absolute path: $library"
+        }
+    }
+
+    set output_dir [file normalize [env_or DC_OUT_DIR [file join $repo_dir synth build]]]
+    file mkdir $output_dir
+    cd $output_dir
+    file mkdir work reports results
+    define_design_lib WORK -path [file join $output_dir work]
+
+    set_app_var target_library $libraries
+    set_app_var synthetic_library [list dw_foundation.sldb]
+    set_app_var link_library [concat [list *] $libraries $extra_libraries [list dw_foundation.sldb]]
+
+    if {[env_or DC_REPORT_ONLY 0] eq "1"} {
+        if {![file isfile results/${top}.ddc]} {
+            error "No mapped DDC in $output_dir/results. Run synthesis first."
+        }
+        read_ddc results/${top}.ddc
+        current_design $top
+        if {![link]} {error "Cannot link the saved mapped design."}
+        report_diagnostics
+        puts "Diagnostic reports complete: $output_dir/reports"
+        return
+    }
+
+    set fd [open [file join $repo_dir rtl files.txt] r]
+    set manifest [read $fd]
+    close $fd
+    set rtl_sources {}
+    foreach line [split $manifest "\n"] {
+        set line [string trim $line]
+        if {$line ne "" && ![string match "#*" $line]} {
+            lappend rtl_sources [file join $repo_dir $line]
+        }
+    }
+
+    if {![analyze -format sverilog -define [list SYNTHESIS] $rtl_sources]} {
+        error "RTL analysis failed."
+    }
+    elaborate $top
+    current_design $top
+    if {![link]} {
+        error "Design linking failed. Check the libraries and unresolved references."
+    }
+    uniquify
+    source [file join $script_dir constraints.tcl]
+
+    redirect -file reports/check_elaborated.rpt {set design_ok [check_design]}
+    if {!$design_ok} {
+        error "Elaborated design failed check_design. See reports/check_elaborated.rpt."
+    }
+    write -format ddc -hierarchy -output results/${top}_elaborated.ddc
+    if {[env_or DC_ELAB_ONLY 0] eq "1"} {
+        puts "Elaboration complete: $output_dir"
+        return
+    }
+
+    # Keep hierarchy so the area report shows FIFO, engines and registers apart.
+    if {![compile_ultra -no_autoungroup]} {
+        error "Technology mapping failed."
+    }
+    if {[env_or DC_FIX_HOLD 0] eq "1"} {
+        puts "FIX_HOLD: running compile -only_hold_time"
+        if {[catch {compile -only_hold_time} hold_msg]} {
+            puts "WARNING: hold fixing failed: $hold_msg"
+        } else {
+            puts "FIX_HOLD: hold fixing pass finished"
+        }
+    }
+    redirect -file reports/check_mapped.rpt {set design_ok [check_design]}
+    if {!$design_ok} {
+        error "Mapped design failed check_design. See reports/check_mapped.rpt."
+    }
+    change_names -rules verilog -hierarchy
+    write -format ddc -hierarchy -output results/${top}.ddc
+    write -format verilog -hierarchy -output results/${top}.v
+    write_sdc results/${top}.sdc
+    redirect -file reports/area.rpt {report_area -hierarchy}
+    redirect -file reports/timing.rpt {report_timing -delay_type max -max_paths 20}
+    redirect -file reports/constraints.rpt {report_constraint -all_violators}
+    redirect -file reports/qor.rpt {report_qor}
+    redirect -file reports/resources.rpt {report_resources -hierarchy}
+    report_diagnostics
+    puts "Synthesis complete: $output_dir"
+}
+if {[catch {run_synthesis} message]} {
+    puts stderr "ERROR: $message"
+    exit 1
+}
+Running PRESTO HDLC
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_pkg.sv
+Warning:  /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_pkg.sv:1: The package dma_pkg has already been analyzed. It is being replaced. (VER-26)
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/cdc_pulse.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_rd_engine.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv
+Compiling source file /home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_top.sv
+Presto compilation completed successfully.
+Loading db file '/usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db'
+Loading db file '/usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/dw_foundation.sldb'
+Loading db file '/usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/gtech.db'
+Loading db file '/usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/standard.sldb'
+  Loading link library 'gscl45nm'
+  Loading link library 'gtech'
+Running PRESTO HDLC
+
+Inferred memory devices in process
+	in routine dma_top line 57 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_top.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|    done_rd_d_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    wr_err_s1_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    wr_err_s2_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_top)
+Elaborated 1 design.
+Current design is now 'dma_top'.
+Information: Building the design 'dma_regs'. (HDL-193)
+
+Statistics for case statements in always block at line 41 in file
+	'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|            53            |    auto/auto     |
+===============================================
+
+Statistics for case statements in always block at line 81 in file
+	'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|            86            |    auto/auto     |
+===============================================
+
+Inferred memory devices in process
+	in routine dma_regs line 41 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|   irq_status_reg    | Flip-flop |   2   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    s_bvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|      busy_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|      done_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|      start_reg      | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    rd_err_q_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    wr_err_q_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     cfg_err_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|    src_addr_reg     | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    dst_addr_reg     | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       len_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|     irq_en_reg      | Flip-flop |   2   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine dma_regs line 81 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_regs.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|     s_rdata_reg     | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    s_rvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_regs)
+Information: Building the design 'cdc_pulse'. (HDL-193)
+
+Inferred memory devices in process
+	in routine cdc_pulse line 11 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/cdc_pulse.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|       tgl_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine cdc_pulse line 15 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/cdc_pulse.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      sync_reg       | Flip-flop |   3   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (cdc_pulse)
+Information: Building the design 'dma_rd_engine'. (HDL-193)
+
+Inferred memory devices in process
+	in routine dma_rd_engine line 20 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_rd_engine.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|       err_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     ar_busy_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     arvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     araddr_reg      | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      arlen_reg      | Flip-flop |   8   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       cur_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       rem_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_rd_engine)
+Information: Building the design 'async_fifo' instantiated from design 'dma_top' with
+	the parameters "DW=64,AW=5". (HDL-193)
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 23 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      wgray_reg      | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      wbin_reg       | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 27 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|       mem_reg       | Flip-flop | 2048  |  Y  | N  | N  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 30 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|    wq2_rgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    wq1_rgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 34 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      wfull_reg      | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 39 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|      rgray_reg      | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      rbin_reg       | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 43 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|    rq2_wgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+|    rq1_wgray_reg    | Flip-flop |   6   |  Y  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+
+Inferred memory devices in process
+	in routine async_fifo_DW64_AW5 line 47 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/async_fifo.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|     rempty_reg      | Flip-flop |   1   |  N  | N  | N  | Y  | N  | N  | N  |
+===============================================================================
+Statistics for MUX_OPs
+============================================================
+|    block name/line     | Inputs | Outputs | # sel inputs |
+============================================================
+| async_fifo_DW64_AW5/51 |   32   |   64    |      5       |
+============================================================
+Presto compilation completed successfully. (async_fifo_DW64_AW5)
+Information: Building the design 'dma_wr_engine'. (HDL-193)
+
+Statistics for case statements in always block at line 24 in file
+	'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|            30            |    auto/auto     |
+===============================================
+
+Inferred memory devices in process
+	in routine dma_wr_engine line 24 in file
+		'/home/a33939_asu/Personal/axi4-dma-asic/rtl/dma_wr_engine.sv'.
+===============================================================================
+|    Register Name    |   Type    | Width | Bus | MB | AR | AS | SR | SS | ST |
+===============================================================================
+|   done_pulse_reg    | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|       st_reg        | Flip-flop |   3   |  Y  | N  | Y  | N  | N  | N  | N  |
+|     awvalid_reg     | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+|     awaddr_reg      | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|      awlen_reg      | Flip-flop |   8   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       cur_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       rem_reg       | Flip-flop |  32   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       cnt_reg       | Flip-flop |   5   |  Y  | N  | Y  | N  | N  | N  | N  |
+|       err_reg       | Flip-flop |   1   |  N  | N  | Y  | N  | N  | N  | N  |
+===============================================================================
+Presto compilation completed successfully. (dma_wr_engine)
+Current design is 'dma_top'.
+
+  Linking design 'dma_top'
+  Using the following designs and libraries:
+  --------------------------------------------------------------------------
+  * (6 designs)               /home/a33939_asu/Personal/axi4-dma-asic/synth/build/dma_top.db, etc
+  gscl45nm (library)          /usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db
+  dw_foundation.sldb (library) /usr/local2/synopsys/syn_2023.12-SP51/libraries/syn/dw_foundation.sldb
+
+Information: Uniquified 2 instances of design 'cdc_pulse'. (OPT-1056)
+CDC crossing constrained: fifo_wptr_to_read
+CDC crossing constrained: fifo_rptr_to_write
+CDC crossing constrained: start_toggle
+CDC crossing constrained: done_toggle
+CDC crossing constrained: write_error_flag
+FIX_HOLD: set_fix_hold applied to all clocks
+Writing ddc file 'results/dma_top_elaborated.ddc'.
+Information: Performing leakage power optimization. (PWR-850)
+Alib files are up-to-date.
+Information: Evaluating DesignWare library utilization. (UISN-27)
+
+============================================================================
+| DesignWare Building Block Library  |         Version         | Available |
+============================================================================
+| Basic DW Building Blocks           | V-2023.12-DWBB_202312.5 |     *     |
+| Licensed DW Building Blocks        | V-2023.12-DWBB_202312.5 |     *     |
+============================================================================
+
+====================================================================================================
+| Flow Information                                                                                 |
+----------------------------------------------------------------------------------------------------
+| Flow         | Design Compiler WLM                                                               |
+| Command Line | compile_ultra -no_autoungroup                                                     |
+====================================================================================================
+| Design Information                                      | Value                                  |
+====================================================================================================
+| Number of Scenarios                                     | 0                                      |
+| Leaf Cell Count                                         | 2944                                   |
+| Number of User Hierarchies                              | 6                                      |
+| Sequential Cell Count                                   | 2471                                   |
+| Macro Count                                             | 0                                      |
+| Number of Power Domains                                 | 0                                      |
+| Number of Path Groups                                   | 3                                      |
+| Number of VT Class                                      | 0                                      |
+| Number of Clocks                                        | 2                                      |
+| Number of Dont Touch Cells                              | 97                                     |
+| Number of Dont Touch Nets                               | 0                                      |
+| Number of Size Only Cells                               | 0                                      |
+| Design with UPF Data                                    | false                                  |
+====================================================================================================
+Information: Sequential output inversion is enabled.  SVF file must be used for formal verification. (OPT-1208)
+
+Information: There are 171 potential problems in your design. Please run 'check_design' for more information. (LINT-99)
+
+  Simplifying Design 'dma_top'
+
+Loaded alib file './alib-52/gscl45nm.db.alib'
+Information: State dependent leakage is now switched from on to off.
+
+  Beginning Pass 1 Mapping
+  ------------------------
+  Processing 'async_fifo_DW64_AW5'
+Information: Added key list 'DesignWare' to design 'async_fifo_DW64_AW5'. (DDB-72)
+ Implement Synthetic for 'async_fifo_DW64_AW5'.
+  Processing 'dma_regs'
+  Processing 'dma_wr_engine'
+Information: In design 'dma_wr_engine', the register 'awlen_reg[6]' is removed because it is merged to 'awlen_reg[5]'. (OPT-1215)
+Information: In design 'dma_wr_engine', the register 'awlen_reg[7]' is removed because it is merged to 'awlen_reg[5]'. (OPT-1215)
+ Implement Synthetic for 'dma_wr_engine'.
+Information: Added key list 'DesignWare' to design 'dma_wr_engine'. (DDB-72)
+  Processing 'dma_rd_engine'
+Information: Added key list 'DesignWare' to design 'dma_rd_engine'. (DDB-72)
+Information: In design 'dma_rd_engine', the register 'arlen_reg[6]' is removed because it is merged to 'arlen_reg[5]'. (OPT-1215)
+Information: In design 'dma_rd_engine', the register 'arlen_reg[7]' is removed because it is merged to 'arlen_reg[5]'. (OPT-1215)
+ Implement Synthetic for 'dma_rd_engine'.
+  Processing 'dma_top'
+  Processing 'cdc_pulse_0'
+  Processing 'cdc_pulse_1'
+
+  Updating timing information
+Information: Updating design information... (UID-85)
+Information: Complementing port 's_awready' in design 'dma_regs'.
+	 The new name of the port is 's_awready_BAR'. (OPT-319)
+Information: Complementing port 's_wready' in design 'dma_regs'.
+	 The new name of the port is 's_wready_BAR'. (OPT-319)
+Information: Complementing port 's_bvalid' in design 'dma_regs'.
+	 The new name of the port is 's_bvalid_BAR'. (OPT-319)
+Information: Complementing port 's_rdata[4]' in design 'dma_regs'.
+	 The new name of the port is 's_rdata[4]_BAR'. (OPT-319)
+Information: Complementing port 's_rdata[3]' in design 'dma_regs'.
+	 The new name of the port is 's_rdata[3]_BAR'. (OPT-319)
+Information: Complementing port 's_rdata[2]' in design 'dma_regs'.
+	 The new name of the port is 's_rdata[2]_BAR'. (OPT-319)
+Information: Complementing port 's_rvalid' in design 'dma_regs'.
+	 The new name of the port is 's_rvalid_BAR'. (OPT-319)
+Information: Complementing port 'araddr[31]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[31]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[30]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[30]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[29]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[29]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[28]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[28]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[27]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[27]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[26]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[26]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[25]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[25]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[24]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[24]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[23]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[23]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[22]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[22]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[21]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[21]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[20]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[20]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[19]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[19]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[18]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[18]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[17]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[17]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[16]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[16]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[15]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[15]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[14]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[14]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[13]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[13]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[12]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[12]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[11]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[11]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[10]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[10]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[9]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[9]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[8]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[8]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[7]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[7]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[6]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[6]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[5]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[5]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[4]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[4]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[3]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[3]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[2]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[2]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[1]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[1]_BAR'. (OPT-319)
+Information: Complementing port 'araddr[0]' in design 'dma_rd_engine'.
+	 The new name of the port is 'araddr[0]_BAR'. (OPT-319)
+Information: Complementing port 'arlen[0]' in design 'dma_rd_engine'.
+	 The new name of the port is 'arlen[0]_BAR'. (OPT-319)
+Information: Complementing port 'arvalid' in design 'dma_rd_engine'.
+	 The new name of the port is 'arvalid_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[31]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[31]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[30]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[30]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[29]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[29]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[28]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[28]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[27]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[27]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[26]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[26]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[25]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[25]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[24]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[24]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[23]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[23]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[22]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[22]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[21]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[21]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[20]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[20]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[19]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[19]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[18]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[18]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[17]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[17]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[16]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[16]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[15]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[15]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[14]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[14]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[13]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[13]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[12]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[12]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[11]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[11]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[10]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[10]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[9]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[9]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[8]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[8]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[7]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[7]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[6]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[6]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[5]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[5]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[4]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[4]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[3]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[3]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[2]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[2]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[1]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[1]_BAR'. (OPT-319)
+Information: Complementing port 'awaddr[0]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awaddr[0]_BAR'. (OPT-319)
+Information: Complementing port 'awlen[0]' in design 'dma_wr_engine'.
+	 The new name of the port is 'awlen[0]_BAR'. (OPT-319)
+Information: Complementing port 'rd_err' in design 'dma_regs'.
+	 The new name of the port is 'rd_err_BAR'. (OPT-319)
+Information: Complementing port 'err' in design 'dma_rd_engine'.
+	 The new name of the port is 'err_BAR'. (OPT-319)
+Information: Complementing port 'fifo_wfull' in design 'dma_rd_engine'.
+	 The new name of the port is 'fifo_wfull_BAR'. (OPT-319)
+Information: Complementing port 'wfull' in design 'async_fifo_DW64_AW5'.
+	 The new name of the port is 'wfull_BAR'. (OPT-319)
+Information: Complementing port 'fifo_rempty' in design 'dma_wr_engine'.
+	 The new name of the port is 'fifo_rempty_BAR'. (OPT-319)
+Information: Complementing port 'rempty' in design 'async_fifo_DW64_AW5'.
+	 The new name of the port is 'rempty_BAR'. (OPT-319)
+
+  Beginning Mapping Optimizations  (Ultra High effort)
+  -------------------------------
+  Mapping Optimization (Phase 1)
+
+                                  TOTAL                                                            
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE   MIN DELAY 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER      COST    
+  --------- --------- --------- --------- --------- ------------------------- --------- -----------
+    0:00:14   42765.9      0.00       0.0    9761.6                           221775.6406      0.00  
+    0:00:14   42758.4      0.00       0.0    9748.2                           221759.4844      0.00  
+
+  Beginning Constant Register Removal
+  -----------------------------------
+
+  Beginning Global Optimizations
+  ------------------------------
+  Numerical Synthesis (Phase 1)
+  Numerical Synthesis (Phase 2)
+  Global Optimization (Phase 1)
+  Global Optimization (Phase 2)
+  Global Optimization (Phase 3)
+  Global Optimization (Phase 4)
+  Global Optimization (Phase 5)
+  Global Optimization (Phase 6)
+  Global Optimization (Phase 7)
+  Global Optimization (Phase 8)
+  Global Optimization (Phase 9)
+  Global Optimization (Phase 10)
+  Global Optimization (Phase 11)
+  Global Optimization (Phase 12)
+  Global Optimization (Phase 13)
+  Global Optimization (Phase 14)
+  Global Optimization (Phase 15)
+  Global Optimization (Phase 16)
+  Global Optimization (Phase 17)
+  Global Optimization (Phase 18)
+  Global Optimization (Phase 19)
+  Global Optimization (Phase 20)
+  Global Optimization (Phase 21)
+  Global Optimization (Phase 22)
+  Global Optimization (Phase 23)
+  Global Optimization (Phase 24)
+  Global Optimization (Phase 25)
+  Global Optimization (Phase 26)
+  Global Optimization (Phase 27)
+  Global Optimization (Phase 28)
+  Global Optimization (Phase 29)
+  Global Optimization (Phase 30)
+
+  Beginning Isolate Ports
+  -----------------------
+
+  Beginning Delay Optimization
+  ----------------------------
+    0:00:16   39722.0      0.00       0.0    9486.1                           197270.4688      0.00  
+    0:00:16   39722.0      0.00       0.0    9486.1                           197270.4688      0.00  
+    0:00:16   39722.0      0.00       0.0    9486.1                           197270.4688      0.00  
+    0:00:16   39722.0      0.00       0.0    9486.1                           197270.4688      0.00  
+    0:00:16   39717.8      0.00       0.0    9482.2                           197249.9375      0.00  
+    0:00:16   39717.8      0.00       0.0    9482.2                           197249.9375      0.00  
+
+  Beginning WLM Backend Optimization
+  --------------------------------------
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+
+
+  Beginning Design Rule Fixing  (max_capacitance)
+  ----------------------------
+
+                                  TOTAL                                                            
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE   MIN DELAY 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER      COST    
+  --------- --------- --------- --------- --------- ------------------------- --------- -----------
+    0:00:17   39388.3      0.00       0.0    9481.4                           195399.2344      0.00  
+  Global Optimization (Phase 31)
+  Global Optimization (Phase 32)
+  Global Optimization (Phase 33)
+    0:00:23   40475.7      0.00       0.0    7305.2                           202386.9688      0.00  
+    0:00:23   40475.7      0.00       0.0    7305.2                           202386.9688      0.00  
+    0:00:23   40586.0      0.00       0.0    7305.2                           203285.3906      0.00  
+    0:00:23   40586.0      0.00       0.0    7305.2                           203285.3906      0.00  
+    0:00:23   40586.0      0.00       0.0    7305.2                           203285.3906      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+
+                                  TOTAL                                                            
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE   MIN DELAY 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER      COST    
+  --------- --------- --------- --------- --------- ------------------------- --------- -----------
+    0:00:23   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:24   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:24   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:24   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:24   40496.8      0.00       0.0    7317.3                           202061.6562      0.00  
+    0:00:24   40357.5      0.00       0.0    7133.0 u_regs/dst_addr[14]       202569.9219      0.00  
+    0:00:25   40864.3      0.00       0.0    6678.2                           205767.8281      0.00  
+    0:00:25   40864.3      0.00       0.0    6678.2                           205767.8281      0.00  
+    0:00:25   40864.3      0.00       0.0    6678.2                           205767.8281      0.00  
+    0:00:25   40864.3      0.00       0.0    6678.2                           205767.8281      0.00  
+    0:00:25   40864.3      0.00       0.0    6678.2                           205767.8281      0.00  
+    0:00:25   40864.3      0.00       0.0    6678.2                           205767.8281      0.00  
+    0:00:25   40861.5      0.00       0.0    6678.2                           205714.1562      0.00  
+Loading db file '/usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db'
+
+
+Note: Symbol # after min delay cost means estimated hold TNS across all active scenarios 
+
+
+  Optimization Complete
+  ---------------------
+Warning: Design 'dma_top' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
+     Net 'u_fifo/wclk': 2325 load(s), 1 driver(s)
+Information: State dependent leakage is now switched from off to on.
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+Information: Total number of MV cells in the design.
+----------------------------------------------------------------------------------------------------
+ MV Cells                                           Total Number                                   
+----------------------------------------------------------------------------------------------------
+ Level Shifter:                                     0                                             
+ Enable Level Shifter:                              0                                             
+ Isolation Cell:                                    0                                             
+ Retention Cell:                                    0                                             
+ Retention Clamp Cell:                              0                                             
+ Switch Cell:                                       0                                             
+ Always-On Cell:                                    0                                             
+ Repeater Cell:                                     0                                             
+
+----------------------------------------------------------------------------------------------------
+Unmapped MV Cells 
+----------------------------------------------------------------------------------------------------
+0 Isolation Cells are unmapped 
+0 Retention Clamp Cells are unmapped 
+----------------------------------------------------------------------------------------------------
+FIX_HOLD: running compile -only_hold_time
+Information: Performing leakage power optimization. (PWR-850)
+====================================================================================================
+| Flow Information                                                                                 |
+----------------------------------------------------------------------------------------------------
+| Flow         | Design Compiler                                                                   |
+| Command Line | compile_ultra                                                                     |
+====================================================================================================
+| Design Information                                      | Value                                  |
+====================================================================================================
+| Number of Scenarios                                     | 0                                      |
+| Leaf Cell Count                                         | 10833                                  |
+| Number of User Hierarchies                              | 6                                      |
+| Sequential Cell Count                                   | 2467                                   |
+| Macro Count                                             | 0                                      |
+| Number of Power Domains                                 | 0                                      |
+| Number of Path Groups                                   | 3                                      |
+| Number of VT Class                                      | 0                                      |
+| Number of Clocks                                        | 2                                      |
+| Number of Dont Touch Cells                              | 0                                      |
+| Number of Dont Touch Nets                               | 0                                      |
+| Number of Size Only Cells                               | 0                                      |
+| Design with UPF Data                                    | false                                  |
+====================================================================================================
+
+Information: There are 193 potential problems in your design. Please run 'check_design' for more information. (LINT-99)
+
+
+  Loading target library 'gscl45nm'
+Information: State dependent leakage is now switched from on to off.
+
+  Beginning Pass 1 Mapping  (Incremental)
+  ------------------------
+
+  Updating timing information
+Information: Updating design information... (UID-85)
+
+  Beginning Mapping Optimizations  (Incremental)
+  -------------------------------
+
+  Beginning Delay Optimization Phase
+  ----------------------------------
+
+                                  TOTAL                                                            
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE   MIN DELAY 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER      COST    
+  --------- --------- --------- --------- --------- ------------------------- --------- -----------
+    0:00:01   40979.3      0.00       0.0    6626.5                           207959.5000      0.00  
+    0:00:01   41169.8      0.00       0.0    6626.5                           209389.6875      0.00  
+    0:00:01   41169.8      0.00       0.0    6626.5                           209389.6875      0.00  
+
+
+  Beginning Design Rule Fixing  (min_path)  (max_capacitance)
+  ----------------------------
+
+                                  TOTAL                                                            
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE   MIN DELAY 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER      COST    
+  --------- --------- --------- --------- --------- ------------------------- --------- -----------
+    0:00:01   41169.8      0.00       0.0    6626.5                           209389.6875   -790.88  
+    0:00:01   41232.2      0.00       0.0    6624.2 u_regs/busy_reg/D         209929.3594   -789.93  
+    0:00:01   41292.3      0.00       0.0    6623.6 u_regs/irq_en_reg[0]/D    210449.2812   -789.20  
+    0:00:02   41348.6      0.00       0.0    6621.3 u_regs/s_rdata_reg[7]/D   210923.3594   -787.90  
+    0:00:02   41400.2      0.00       0.0    6619.4 u_regs/s_rdata_reg[13]/D  211357.9375   -786.55  
+    0:00:02   41451.9      0.00       0.0    6617.5 u_regs/s_rdata_reg[19]/D  211792.5156   -785.12  
+    0:00:02   41503.5      0.00       0.0    6615.6 u_regs/s_rdata_reg[25]/D  212227.0938   -783.72  
+    0:00:02   41555.1      0.00       0.0    6613.7 u_regs/s_rdata_reg[31]/D  212661.6719   -782.32  
+    0:00:02   41608.6      0.00       0.0    6610.8 u_regs/dst_addr_reg[25]/D 213154.7344   -781.35  
+    0:00:02   41659.3      0.00       0.0    6607.0 u_regs/dst_addr_reg[13]/D 213666.7812   -780.55  
+    0:00:02   41706.7      0.00       0.0    6603.8 u_regs/dst_addr_reg[3]/D  214129.8281   -779.86  
+    0:00:02   41770.5      0.00       0.0    6603.1 u_regs/src_addr_reg[22]/D 214695.5781   -778.50  
+    0:00:03   41839.5      0.00       0.0    6603.1 u_regs/src_addr_reg[8]/D  215333.2500   -777.01  
+    0:00:03   41908.5      0.00       0.0    6603.1 u_regs/len_reg[28]/D      215970.9062   -775.50  
+    0:00:03   41969.5      0.00       0.0    6603.1 u_regs/len_reg[19]/D      216484.5000   -774.26  
+    0:00:03   42030.5      0.00       0.0    6603.1 u_regs/len_reg[11]/D      216998.0938   -773.01  
+    0:00:03   42091.5      0.00       0.0    6603.1 u_regs/len_reg[2]/D       217511.6875   -771.75  
+    0:00:03   42173.6      0.00       0.0    6602.2 u_rd/ar_busy_reg/D        218237.9844   -770.60  
+    0:00:03   42234.7      0.00       0.0    6601.2 u_rd/rem_reg[1]/D         218786.4844   -769.81  
+    0:00:04   42287.7      0.00       0.0    6600.9 u_rd/rem_reg[10]/D        219247.1406   -769.20  
+    0:00:04   42341.7      0.00       0.0    6600.6 u_rd/rem_reg[17]/D        219701.4844   -768.52  
+    0:00:04   42390.5      0.00       0.0    6600.3 u_rd/rem_reg[24]/D        220119.4688   -767.95  
+    0:00:04   42439.3      0.00       0.0    6600.3 u_rd/rem_reg[30]/D        220537.4531   -767.38  
+    0:00:04   42499.3      0.00       0.0    6599.3 u_rd/cur_reg[4]/D         221057.3750   -766.56  
+    0:00:04   42560.8      0.00       0.0    6598.0 u_rd/araddr_reg[7]/D      221602.7188   -765.76  
+    0:00:04   42616.7      0.00       0.0    6597.1 u_rd/cur_reg[11]/D        222045.0625   -765.09  
+    0:00:05   42673.0      0.00       0.0    6595.8 u_rd/araddr_reg[14]/D     222519.1406   -764.39  
+    0:00:05   42731.2      0.00       0.0    6594.8 u_rd/cur_reg[18]/D        223016.1406   -763.68  
+    0:00:05   42789.8      0.00       0.0    6593.6 u_rd/araddr_reg[21]/D     223544.8906   -762.95  
+    0:00:05   42845.7      0.00       0.0    6592.6 u_rd/cur_reg[25]/D        223987.2344   -762.29  
+    0:00:05   42904.3      0.00       0.0    6591.3 u_rd/araddr_reg[28]/D     224515.9844   -761.57  
+    0:00:05   42962.1      0.00       0.0    6590.4 u_fifo/wbin_reg[5]/D      225016.1562   -760.80  
+    0:00:06   43065.3      0.00       0.0    6588.1 u_fifo/wfull_reg/D        225885.3125   -759.55  
+    0:00:06   43154.5      0.00       0.0    6585.7 u_fifo/mem_reg[31][0]/D   226670.8594   -758.44  
+    0:00:06   43213.1      0.00       0.0    6585.3 u_fifo/mem_reg[31][62]/D  227164.7031   -757.68  
+    0:00:06   43269.5      0.00       0.0    6584.9 u_fifo/mem_reg[31][60]/D  227638.7812   -756.94  
+    0:00:06   43325.8      0.00       0.0    6584.6 u_fifo/mem_reg[31][58]/D  228112.8750   -756.21  
+    0:00:06   43382.1      0.00       0.0    6584.2 u_fifo/mem_reg[31][56]/D  228586.9531   -755.47  
+    0:00:07   43438.4      0.00       0.0    6583.8 u_fifo/mem_reg[31][54]/D  229061.0469   -754.74  
+    0:00:07   43494.7      0.00       0.0    6583.4 u_fifo/mem_reg[31][52]/D  229535.1250   -754.00  
+    0:00:07   43551.0      0.00       0.0    6583.0 u_fifo/mem_reg[31][50]/D  230009.2188   -753.27  
+    0:00:07   43607.4      0.00       0.0    6582.6 u_fifo/mem_reg[31][48]/D  230483.2969   -752.53  
+    0:00:07   43663.7      0.00       0.0    6582.2 u_fifo/mem_reg[31][46]/D  230957.3906   -751.80  
+    0:00:07   43720.0      0.00       0.0    6581.8 u_fifo/mem_reg[31][44]/D  231431.4844   -751.06  
+    0:00:07   43776.3      0.00       0.0    6581.5 u_fifo/mem_reg[31][42]/D  231905.5625   -750.33  
+    0:00:08   43832.6      0.00       0.0    6581.1 u_fifo/mem_reg[31][40]/D  232379.6562   -749.59  
+    0:00:08   43888.9      0.00       0.0    6580.7 u_fifo/mem_reg[31][38]/D  232853.7344   -748.86  
+    0:00:08   43945.3      0.00       0.0    6580.3 u_fifo/mem_reg[31][36]/D  233327.8281   -748.12  
+    0:00:08   44003.9      0.00       0.0    6579.9 u_fifo/mem_reg[31][34]/D  233821.6562   -747.36  
+    0:00:08   44062.6      0.00       0.0    6579.5 u_fifo/mem_reg[31][32]/D  234315.5000   -746.59  
+    0:00:08   44121.2      0.00       0.0    6579.1 u_fifo/mem_reg[31][30]/D  234809.3438   -745.83  
+    0:00:08   44179.9      0.00       0.0    6578.8 u_fifo/mem_reg[31][28]/D  235303.1875   -745.06  
+    0:00:08   44238.1      0.00       0.0    6578.4 u_fifo/mem_reg[31][26]/D  235800.1875   -744.31  
+    0:00:09   44294.9      0.00       0.0    6578.0 u_fifo/mem_reg[31][24]/D  236271.1094   -743.57  
+    0:00:09   44353.5      0.00       0.0    6577.4 u_fifo/mem_reg[31][21]/D  236764.9531   -742.79  
+    0:00:09   44412.2      0.00       0.0    6577.0 u_fifo/mem_reg[31][19]/D  237258.7969   -742.03  
+    0:00:09   44470.9      0.00       0.0    6576.6 u_fifo/mem_reg[31][17]/D  237752.6250   -741.26  
+    0:00:09   44529.5      0.00       0.0    6576.2 u_fifo/mem_reg[31][15]/D  238246.4688   -740.50  
+    0:00:09   44588.2      0.00       0.0    6575.9 u_fifo/mem_reg[31][13]/D  238740.3125   -739.73  
+    0:00:09   44646.9      0.00       0.0    6575.5 u_fifo/mem_reg[31][11]/D  239234.1562   -738.97  
+    0:00:10   44705.5      0.00       0.0    6575.1 u_fifo/mem_reg[31][9]/D   239727.9844   -738.20  
+    0:00:10   44764.2      0.00       0.0    6574.7 u_fifo/mem_reg[31][7]/D   240221.8281   -737.44  
+    0:00:10   44822.8      0.00       0.0    6574.3 u_fifo/mem_reg[31][5]/D   240715.6719   -736.67  
+    0:00:10   44881.5      0.00       0.0    6573.9 u_fifo/mem_reg[31][3]/D   241209.5156   -735.91  
+    0:00:10   44940.2      0.00       0.0    6573.5 u_fifo/mem_reg[31][1]/D   241703.3438   -735.14  
+    0:00:10   44998.4      0.00       0.0    6573.2 u_fifo/mem_reg[30][63]/D  242200.3594   -734.39  
+    0:00:10   45054.7      0.00       0.0    6572.8 u_fifo/mem_reg[30][61]/D  242674.4375   -733.65  
+    0:00:10   45111.0      0.00       0.0    6572.4 u_fifo/mem_reg[30][59]/D  243148.5312   -732.92  
+    0:00:11   45167.3      0.00       0.0    6572.0 u_fifo/mem_reg[30][57]/D  243622.6094   -732.18  
+    0:00:11   45223.6      0.00       0.0    6571.6 u_fifo/mem_reg[30][55]/D  244096.7031   -731.45  
+    0:00:11   45279.9      0.00       0.0    6571.2 u_fifo/mem_reg[30][53]/D  244570.7812   -730.71  
+    0:00:11   45336.3      0.00       0.0    6570.8 u_fifo/mem_reg[30][51]/D  245044.8750   -729.98  
+    0:00:11   45392.6      0.00       0.0    6570.4 u_fifo/mem_reg[30][49]/D  245518.9531   -729.24  
+    0:00:11   45448.9      0.00       0.0    6570.1 u_fifo/mem_reg[30][47]/D  245993.0469   -728.51  
+    0:00:11   45505.2      0.00       0.0    6569.7 u_fifo/mem_reg[30][45]/D  246467.1250   -727.77  
+    0:00:12   45561.5      0.00       0.0    6569.3 u_fifo/mem_reg[30][43]/D  246941.2188   -727.04  
+    0:00:12   45617.8      0.00       0.0    6568.9 u_fifo/mem_reg[30][41]/D  247415.2969   -726.30  
+    0:00:12   45674.2      0.00       0.0    6568.5 u_fifo/mem_reg[30][39]/D  247889.3906   -725.57  
+    0:00:12   45730.5      0.00       0.0    6568.1 u_fifo/mem_reg[30][37]/D  248363.4688   -724.83  
+    0:00:12   45787.3      0.00       0.0    6567.7 u_fifo/mem_reg[30][35]/D  248834.3906   -724.09  
+    0:00:12   45845.9      0.00       0.0    6567.2 u_fifo/mem_reg[30][32]/D  249328.2344   -723.32  
+    0:00:12   45904.6      0.00       0.0    6566.8 u_fifo/mem_reg[30][30]/D  249822.0781   -722.55  
+    0:00:12   45963.2      0.00       0.0    6566.4 u_fifo/mem_reg[30][28]/D  250315.9219   -721.79  
+    0:00:13   46021.9      0.00       0.0    6566.0 u_fifo/mem_reg[30][26]/D  250809.7656   -721.02  
+    0:00:13   46080.6      0.00       0.0    6565.6 u_fifo/mem_reg[30][24]/D  251303.5938   -720.26  
+    0:00:13   46139.2      0.00       0.0    6565.2 u_fifo/mem_reg[30][22]/D  251797.4375   -719.49  
+    0:00:13   46197.9      0.00       0.0    6564.8 u_fifo/mem_reg[30][20]/D  252291.2812   -718.73  
+    0:00:13   46256.6      0.00       0.0    6564.5 u_fifo/mem_reg[30][18]/D  252785.1250   -717.96  
+    0:00:13   46315.2      0.00       0.0    6564.1 u_fifo/mem_reg[30][16]/D  253278.9531   -717.20  
+    0:00:13   46373.9      0.00       0.0    6563.7 u_fifo/mem_reg[30][14]/D  253772.7969   -716.43  
+    0:00:14   46432.5      0.00       0.0    6563.3 u_fifo/mem_reg[30][12]/D  254266.6406   -715.67  
+    0:00:14   46490.7      0.00       0.0    6562.9 u_fifo/mem_reg[30][10]/D  254763.6406   -714.91  
+    0:00:14   46547.5      0.00       0.0    6562.5 u_fifo/mem_reg[30][8]/D   255234.5625   -714.17  
+    0:00:14   46606.2      0.00       0.0    6561.9 u_fifo/mem_reg[30][5]/D   255728.4062   -713.40  
+    0:00:14   46664.8      0.00       0.0    6561.6 u_fifo/mem_reg[30][3]/D   256222.2500   -712.63  
+    0:00:14   46723.5      0.00       0.0    6561.2 u_fifo/mem_reg[30][1]/D   256716.0781   -711.87  
+    0:00:14   46782.2      0.00       0.0    6560.8 u_fifo/mem_reg[29][63]/D  257209.9219   -711.10  
+    0:00:14   46838.5      0.00       0.0    6560.4 u_fifo/mem_reg[29][61]/D  257684.0156   -710.37  
+    0:00:15   46894.8      0.00       0.0    6560.0 u_fifo/mem_reg[29][59]/D  258158.0938   -709.63  
+    0:00:15   46951.1      0.00       0.0    6559.6 u_fifo/mem_reg[29][57]/D  258632.1875   -708.90  
+    0:00:15   47007.4      0.00       0.0    6559.2 u_fifo/mem_reg[29][55]/D  259106.2656   -708.16  
+    0:00:15   47063.7      0.00       0.0    6558.9 u_fifo/mem_reg[29][53]/D  259580.3594   -707.43  
+    0:00:15   47120.1      0.00       0.0    6558.5 u_fifo/mem_reg[29][51]/D  260054.4375   -706.69  
+    0:00:15   47176.4      0.00       0.0    6558.1 u_fifo/mem_reg[29][49]/D  260528.5312   -705.96  
+    0:00:15   47232.7      0.00       0.0    6557.7 u_fifo/mem_reg[29][47]/D  261002.6094   -705.22  
+    0:00:16   47289.0      0.00       0.0    6557.3 u_fifo/mem_reg[29][45]/D  261476.7031   -704.49  
+    0:00:16   47345.3      0.00       0.0    6556.9 u_fifo/mem_reg[29][43]/D  261950.7812   -703.75  
+    0:00:16   47401.6      0.00       0.0    6556.5 u_fifo/mem_reg[29][41]/D  262424.8750   -703.02  
+    0:00:16   47458.0      0.00       0.0    6556.2 u_fifo/mem_reg[29][39]/D  262898.9688   -702.28  
+    0:00:16   47514.3      0.00       0.0    6555.8 u_fifo/mem_reg[29][37]/D  263373.0625   -701.55  
+    0:00:16   47570.6      0.00       0.0    6555.4 u_fifo/mem_reg[29][35]/D  263847.1250   -700.81  
+    0:00:16   47626.9      0.00       0.0    6555.0 u_fifo/mem_reg[29][33]/D  264321.2188   -700.08  
+    0:00:16   47683.2      0.00       0.0    6554.6 u_fifo/mem_reg[29][31]/D  264795.3125   -699.34  
+    0:00:17   47739.5      0.00       0.0    6554.2 u_fifo/mem_reg[29][29]/D  265269.4062   -698.61  
+    0:00:17   47795.9      0.00       0.0    6553.8 u_fifo/mem_reg[29][27]/D  265743.4688   -697.87  
+    0:00:17   47852.2      0.00       0.0    6553.4 u_fifo/mem_reg[29][25]/D  266217.5625   -697.14  
+    0:00:17   47908.5      0.00       0.0    6553.1 u_fifo/mem_reg[29][23]/D  266691.6562   -696.40  
+    0:00:17   47964.8      0.00       0.0    6552.7 u_fifo/mem_reg[29][21]/D  267165.7500   -695.67  
+    0:00:17   48021.1      0.00       0.0    6552.3 u_fifo/mem_reg[29][19]/D  267639.8125   -694.93  
+    0:00:17   48077.4      0.00       0.0    6551.9 u_fifo/mem_reg[29][17]/D  268113.9062   -694.20  
+    0:00:18   48133.8      0.00       0.0    6551.5 u_fifo/mem_reg[29][15]/D  268588.0000   -693.46  
+    0:00:18   48190.1      0.00       0.0    6551.1 u_fifo/mem_reg[29][13]/D  269062.0938   -692.73  
+    0:00:18   48246.4      0.00       0.0    6550.7 u_fifo/mem_reg[29][11]/D  269536.1562   -691.99  
+    0:00:18   48302.7      0.00       0.0    6550.4 u_fifo/mem_reg[29][9]/D   270010.2500   -691.26  
+    0:00:18   48359.0      0.00       0.0    6550.0 u_fifo/mem_reg[29][7]/D   270484.3438   -690.52  
+    0:00:18   48415.3      0.00       0.0    6549.6 u_fifo/mem_reg[29][5]/D   270958.4375   -689.79  
+    0:00:18   48471.6      0.00       0.0    6549.2 u_fifo/mem_reg[29][3]/D   271432.5312   -689.05  
+    0:00:18   48528.0      0.00       0.0    6548.8 u_fifo/mem_reg[29][1]/D   271906.5938   -688.32  
+    0:00:19   48586.6      0.00       0.0    6548.4 u_fifo/mem_reg[28][63]/D  272400.4375   -687.55  
+    0:00:19   48642.9      0.00       0.0    6548.0 u_fifo/mem_reg[28][61]/D  272874.5312   -686.82  
+    0:00:19   48699.3      0.00       0.0    6547.6 u_fifo/mem_reg[28][59]/D  273348.6250   -686.08  
+    0:00:19   48755.6      0.00       0.0    6547.3 u_fifo/mem_reg[28][57]/D  273822.6875   -685.35  
+    0:00:19   48811.9      0.00       0.0    6546.9 u_fifo/mem_reg[28][55]/D  274296.7812   -684.61  
+    0:00:19   48868.2      0.00       0.0    6546.5 u_fifo/mem_reg[28][53]/D  274770.8750   -683.88  
+    0:00:19   48924.5      0.00       0.0    6546.1 u_fifo/mem_reg[28][51]/D  275244.9688   -683.14  
+    0:00:20   48980.8      0.00       0.0    6545.7 u_fifo/mem_reg[28][49]/D  275719.0312   -682.41  
+    0:00:20   49037.2      0.00       0.0    6545.3 u_fifo/mem_reg[28][47]/D  276193.1250   -681.67  
+    0:00:20   49093.5      0.00       0.0    6544.9 u_fifo/mem_reg[28][45]/D  276667.2188   -680.94  
+    0:00:20   49149.8      0.00       0.0    6544.6 u_fifo/mem_reg[28][43]/D  277141.3125   -680.21  
+    0:00:20   49206.1      0.00       0.0    6544.2 u_fifo/mem_reg[28][41]/D  277615.4062   -679.47  
+    0:00:20   49262.4      0.00       0.0    6543.8 u_fifo/mem_reg[28][39]/D  278089.4688   -678.74  
+    0:00:20   49318.7      0.00       0.0    6543.4 u_fifo/mem_reg[28][37]/D  278563.5625   -678.00  
+    0:00:20   49375.1      0.00       0.0    6543.0 u_fifo/mem_reg[28][35]/D  279037.6562   -677.27  
+    0:00:21   49431.4      0.00       0.0    6542.6 u_fifo/mem_reg[28][33]/D  279511.7500   -676.53  
+    0:00:21   49487.7      0.00       0.0    6542.2 u_fifo/mem_reg[28][31]/D  279985.8125   -675.80  
+    0:00:21   49544.0      0.00       0.0    6541.9 u_fifo/mem_reg[28][29]/D  280459.9062   -675.06  
+    0:00:21   49600.3      0.00       0.0    6541.5 u_fifo/mem_reg[28][27]/D  280934.0000   -674.33  
+    0:00:21   49656.6      0.00       0.0    6541.1 u_fifo/mem_reg[28][25]/D  281408.0938   -673.59  
+    0:00:21   49712.9      0.00       0.0    6540.7 u_fifo/mem_reg[28][23]/D  281882.1562   -672.86  
+    0:00:21   49769.3      0.00       0.0    6540.3 u_fifo/mem_reg[28][21]/D  282356.2500   -672.12  
+    0:00:22   49825.6      0.00       0.0    6539.9 u_fifo/mem_reg[28][19]/D  282830.3438   -671.39  
+    0:00:22   49881.9      0.00       0.0    6539.5 u_fifo/mem_reg[28][17]/D  283304.4375   -670.65  
+    0:00:22   49938.2      0.00       0.0    6539.1 u_fifo/mem_reg[28][15]/D  283778.5000   -669.92  
+    0:00:22   49994.5      0.00       0.0    6538.8 u_fifo/mem_reg[28][13]/D  284252.5938   -669.18  
+    0:00:22   50050.8      0.00       0.0    6538.4 u_fifo/mem_reg[28][11]/D  284726.6875   -668.45  
+    0:00:22   50107.2      0.00       0.0    6538.0 u_fifo/mem_reg[28][9]/D   285200.7812   -667.71  
+    0:00:22   50163.5      0.00       0.0    6537.6 u_fifo/mem_reg[28][7]/D   285674.8750   -666.98  
+    0:00:22   50219.8      0.00       0.0    6537.2 u_fifo/mem_reg[28][5]/D   286148.9375   -666.24  
+    0:00:23   50276.1      0.00       0.0    6536.8 u_fifo/mem_reg[28][3]/D   286623.0312   -665.51  
+    0:00:23   50332.4      0.00       0.0    6536.4 u_fifo/mem_reg[28][1]/D   287097.1250   -664.77  
+    0:00:23   50391.1      0.00       0.0    6536.1 u_fifo/mem_reg[27][63]/D  287590.9688   -664.01  
+    0:00:23   50447.4      0.00       0.0    6535.7 u_fifo/mem_reg[27][61]/D  288065.0312   -663.27  
+    0:00:23   50503.7      0.00       0.0    6535.3 u_fifo/mem_reg[27][59]/D  288539.1250   -662.54  
+    0:00:23   50560.0      0.00       0.0    6534.9 u_fifo/mem_reg[27][57]/D  289013.2188   -661.80  
+    0:00:23   50616.4      0.00       0.0    6534.5 u_fifo/mem_reg[27][55]/D  289487.3125   -661.07  
+    0:00:24   50672.7      0.00       0.0    6534.1 u_fifo/mem_reg[27][53]/D  289961.4062   -660.33  
+    0:00:24   50729.0      0.00       0.0    6533.7 u_fifo/mem_reg[27][51]/D  290435.4688   -659.60  
+    0:00:24   50785.3      0.00       0.0    6533.4 u_fifo/mem_reg[27][49]/D  290909.5625   -658.86  
+    0:00:24   50841.6      0.00       0.0    6533.0 u_fifo/mem_reg[27][47]/D  291383.6562   -658.13  
+    0:00:24   50897.9      0.00       0.0    6532.6 u_fifo/mem_reg[27][45]/D  291857.7500   -657.39  
+    0:00:24   50954.2      0.00       0.0    6532.2 u_fifo/mem_reg[27][43]/D  292331.8125   -656.66  
+    0:00:24   51010.6      0.00       0.0    6531.8 u_fifo/mem_reg[27][41]/D  292805.9062   -655.92  
+    0:00:24   51066.9      0.00       0.0    6531.4 u_fifo/mem_reg[27][39]/D  293280.0000   -655.19  
+    0:00:25   51123.2      0.00       0.0    6531.0 u_fifo/mem_reg[27][37]/D  293754.0938   -654.45  
+    0:00:25   51179.5      0.00       0.0    6530.6 u_fifo/mem_reg[27][35]/D  294228.1562   -653.72  
+    0:00:25   51235.8      0.00       0.0    6530.3 u_fifo/mem_reg[27][33]/D  294702.2500   -652.98  
+    0:00:25   51292.1      0.00       0.0    6529.9 u_fifo/mem_reg[27][31]/D  295176.3438   -652.25  
+    0:00:25   51348.5      0.00       0.0    6529.5 u_fifo/mem_reg[27][29]/D  295650.4375   -651.51  
+    0:00:25   51404.8      0.00       0.0    6529.1 u_fifo/mem_reg[27][27]/D  296124.5000   -650.78  
+    0:00:25   51461.1      0.00       0.0    6528.7 u_fifo/mem_reg[27][25]/D  296598.5938   -650.04  
+    0:00:26   51517.4      0.00       0.0    6528.3 u_fifo/mem_reg[27][23]/D  297072.6875   -649.31  
+    0:00:26   51573.7      0.00       0.0    6527.9 u_fifo/mem_reg[27][21]/D  297546.7812   -648.58  
+    0:00:26   51630.0      0.00       0.0    6527.6 u_fifo/mem_reg[27][19]/D  298020.8750   -647.84  
+    0:00:26   51686.4      0.00       0.0    6527.2 u_fifo/mem_reg[27][17]/D  298494.9375   -647.11  
+    0:00:26   51742.7      0.00       0.0    6526.8 u_fifo/mem_reg[27][15]/D  298969.0312   -646.37  
+    0:00:26   51799.0      0.00       0.0    6526.4 u_fifo/mem_reg[27][13]/D  299443.1250   -645.64  
+    0:00:26   51855.3      0.00       0.0    6526.0 u_fifo/mem_reg[27][11]/D  299917.2188   -644.90  
+    0:00:27   51911.6      0.00       0.0    6525.6 u_fifo/mem_reg[27][9]/D   300391.2812   -644.17  
+    0:00:27   51967.9      0.00       0.0    6525.2 u_fifo/mem_reg[27][7]/D   300865.3750   -643.43  
+    0:00:27   52024.3      0.00       0.0    6524.9 u_fifo/mem_reg[27][5]/D   301339.4688   -642.70  
+    0:00:27   52080.6      0.00       0.0    6524.5 u_fifo/mem_reg[27][3]/D   301813.5625   -641.96  
+    0:00:27   52136.9      0.00       0.0    6524.1 u_fifo/mem_reg[27][1]/D   302287.6250   -641.23  
+    0:00:27   52195.5      0.00       0.0    6523.7 u_fifo/mem_reg[26][63]/D  302781.4688   -640.46  
+    0:00:27   52251.9      0.00       0.0    6523.3 u_fifo/mem_reg[26][61]/D  303255.5625   -639.73  
+    0:00:27   52308.2      0.00       0.0    6522.9 u_fifo/mem_reg[26][59]/D  303729.6562   -638.99  
+    0:00:28   52364.5      0.00       0.0    6522.5 u_fifo/mem_reg[26][57]/D  304203.7500   -638.26  
+    0:00:28   52420.8      0.00       0.0    6522.1 u_fifo/mem_reg[26][55]/D  304677.8125   -637.52  
+    0:00:28   52477.1      0.00       0.0    6521.8 u_fifo/mem_reg[26][53]/D  305151.9062   -636.79  
+    0:00:28   52533.4      0.00       0.0    6521.4 u_fifo/mem_reg[26][51]/D  305626.0000   -636.05  
+    0:00:28   52589.8      0.00       0.0    6521.0 u_fifo/mem_reg[26][49]/D  306100.0938   -635.32  
+    0:00:28   52646.1      0.00       0.0    6520.6 u_fifo/mem_reg[26][47]/D  306574.1562   -634.58  
+    0:00:28   52702.4      0.00       0.0    6520.2 u_fifo/mem_reg[26][45]/D  307048.2500   -633.85  
+    0:00:29   52758.7      0.00       0.0    6519.8 u_fifo/mem_reg[26][43]/D  307522.3438   -633.11  
+    0:00:29   52815.0      0.00       0.0    6519.4 u_fifo/mem_reg[26][41]/D  307996.4375   -632.38  
+    0:00:29   52871.3      0.00       0.0    6519.1 u_fifo/mem_reg[26][39]/D  308470.5000   -631.64  
+    0:00:29   52927.7      0.00       0.0    6518.7 u_fifo/mem_reg[26][37]/D  308944.5938   -630.91  
+    0:00:29   52984.0      0.00       0.0    6518.3 u_fifo/mem_reg[26][35]/D  309418.6875   -630.17  
+    0:00:29   53040.3      0.00       0.0    6517.9 u_fifo/mem_reg[26][33]/D  309892.7812   -629.44  
+    0:00:29   53096.6      0.00       0.0    6517.5 u_fifo/mem_reg[26][31]/D  310366.8750   -628.70  
+    0:00:30   53152.9      0.00       0.0    6517.1 u_fifo/mem_reg[26][29]/D  310840.9375   -627.97  
+    0:00:30   53209.2      0.00       0.0    6516.7 u_fifo/mem_reg[26][27]/D  311315.0312   -627.23  
+    0:00:30   53265.5      0.00       0.0    6516.4 u_fifo/mem_reg[26][25]/D  311789.1250   -626.50  
+    0:00:30   53321.9      0.00       0.0    6516.0 u_fifo/mem_reg[26][23]/D  312263.2188   -625.76  
+    0:00:30   53378.2      0.00       0.0    6515.6 u_fifo/mem_reg[26][21]/D  312737.2812   -625.03  
+    0:00:30   53434.5      0.00       0.0    6515.2 u_fifo/mem_reg[26][19]/D  313211.3750   -624.29  
+    0:00:30   53490.8      0.00       0.0    6514.8 u_fifo/mem_reg[26][17]/D  313685.4688   -623.56  
+    0:00:30   53547.1      0.00       0.0    6514.4 u_fifo/mem_reg[26][15]/D  314159.5625   -622.82  
+    0:00:31   53603.4      0.00       0.0    6514.0 u_fifo/mem_reg[26][13]/D  314633.6250   -622.09  
+    0:00:31   53659.8      0.00       0.0    6513.6 u_fifo/mem_reg[26][11]/D  315107.7188   -621.35  
+    0:00:31   53716.1      0.00       0.0    6513.3 u_fifo/mem_reg[26][9]/D   315581.8125   -620.62  
+    0:00:31   53772.4      0.00       0.0    6512.9 u_fifo/mem_reg[26][7]/D   316055.9062   -619.88  
+    0:00:31   53828.7      0.00       0.0    6512.5 u_fifo/mem_reg[26][5]/D   316529.9688   -619.15  
+    0:00:31   53885.0      0.00       0.0    6512.1 u_fifo/mem_reg[26][3]/D   317004.0625   -618.41  
+    0:00:31   53941.3      0.00       0.0    6511.7 u_fifo/mem_reg[26][1]/D   317478.1562   -617.68  
+    0:00:32   54000.0      0.00       0.0    6511.3 u_fifo/mem_reg[25][63]/D  317972.0000   -616.91  
+    0:00:32   54056.3      0.00       0.0    6510.9 u_fifo/mem_reg[25][61]/D  318446.0938   -616.18  
+    0:00:32   54112.6      0.00       0.0    6510.6 u_fifo/mem_reg[25][59]/D  318920.1562   -615.45  
+    0:00:32   54169.0      0.00       0.0    6510.2 u_fifo/mem_reg[25][57]/D  319394.2500   -614.71  
+    0:00:32   54225.3      0.00       0.0    6509.8 u_fifo/mem_reg[25][55]/D  319868.3438   -613.98  
+    0:00:32   54281.6      0.00       0.0    6509.4 u_fifo/mem_reg[25][53]/D  320342.4375   -613.24  
+    0:00:32   54337.9      0.00       0.0    6509.0 u_fifo/mem_reg[25][51]/D  320816.5000   -612.51  
+    0:00:33   54394.2      0.00       0.0    6508.6 u_fifo/mem_reg[25][49]/D  321290.5938   -611.77  
+    0:00:33   54450.5      0.00       0.0    6508.2 u_fifo/mem_reg[25][47]/D  321764.6875   -611.04  
+    0:00:33   54506.8      0.00       0.0    6507.9 u_fifo/mem_reg[25][45]/D  322238.7812   -610.30  
+    0:00:33   54563.2      0.00       0.0    6507.5 u_fifo/mem_reg[25][43]/D  322712.8438   -609.57  
+    0:00:33   54619.5      0.00       0.0    6507.1 u_fifo/mem_reg[25][41]/D  323186.9375   -608.83  
+    0:00:33   54675.8      0.00       0.0    6506.7 u_fifo/mem_reg[25][39]/D  323661.0312   -608.10  
+    0:00:33   54732.1      0.00       0.0    6506.3 u_fifo/mem_reg[25][37]/D  324135.1250   -607.36  
+    0:00:33   54788.4      0.00       0.0    6505.9 u_fifo/mem_reg[25][35]/D  324609.2188   -606.63  
+    0:00:34   54844.7      0.00       0.0    6505.5 u_fifo/mem_reg[25][33]/D  325083.2812   -605.89  
+    0:00:34   54901.1      0.00       0.0    6505.1 u_fifo/mem_reg[25][31]/D  325557.3750   -605.16  
+    0:00:34   54957.4      0.00       0.0    6504.8 u_fifo/mem_reg[25][29]/D  326031.4688   -604.42  
+    0:00:34   55013.7      0.00       0.0    6504.4 u_fifo/mem_reg[25][27]/D  326505.5625   -603.69  
+    0:00:34   55070.0      0.00       0.0    6504.0 u_fifo/mem_reg[25][25]/D  326979.6250   -602.95  
+    0:00:34   55126.3      0.00       0.0    6503.6 u_fifo/mem_reg[25][23]/D  327453.7188   -602.22  
+    0:00:34   55182.6      0.00       0.0    6503.2 u_fifo/mem_reg[25][21]/D  327927.8125   -601.48  
+    0:00:35   55239.0      0.00       0.0    6502.8 u_fifo/mem_reg[25][19]/D  328401.9062   -600.75  
+    0:00:35   55295.3      0.00       0.0    6502.4 u_fifo/mem_reg[25][17]/D  328875.9688   -600.01  
+    0:00:35   55351.6      0.00       0.0    6502.1 u_fifo/mem_reg[25][15]/D  329350.0625   -599.28  
+    0:00:35   55407.9      0.00       0.0    6501.7 u_fifo/mem_reg[25][13]/D  329824.1562   -598.54  
+    0:00:35   55464.2      0.00       0.0    6501.3 u_fifo/mem_reg[25][11]/D  330298.2500   -597.81  
+    0:00:35   55520.5      0.00       0.0    6500.9 u_fifo/mem_reg[25][9]/D   330772.3125   -597.07  
+    0:00:35   55576.9      0.00       0.0    6500.5 u_fifo/mem_reg[25][7]/D   331246.4062   -596.34  
+    0:00:36   55633.2      0.00       0.0    6500.1 u_fifo/mem_reg[25][5]/D   331720.5000   -595.60  
+    0:00:36   55689.5      0.00       0.0    6499.7 u_fifo/mem_reg[25][3]/D   332194.5938   -594.87  
+    0:00:36   55745.8      0.00       0.0    6499.4 u_fifo/mem_reg[25][1]/D   332668.6875   -594.13  
+    0:00:36   55804.5      0.00       0.0    6499.0 u_fifo/mem_reg[24][63]/D  333162.5000   -593.37  
+    0:00:36   55860.8      0.00       0.0    6498.6 u_fifo/mem_reg[24][61]/D  333636.5938   -592.63  
+    0:00:36   55917.1      0.00       0.0    6498.2 u_fifo/mem_reg[24][59]/D  334110.6875   -591.90  
+    0:00:36   55973.4      0.00       0.0    6497.8 u_fifo/mem_reg[24][57]/D  334584.7812   -591.16  
+    0:00:36   56029.7      0.00       0.0    6497.4 u_fifo/mem_reg[24][55]/D  335058.8438   -590.43  
+    0:00:37   56086.0      0.00       0.0    6497.0 u_fifo/mem_reg[24][53]/D  335532.9375   -589.69  
+    0:00:37   56142.4      0.00       0.0    6496.6 u_fifo/mem_reg[24][51]/D  336007.0312   -588.96  
+    0:00:37   56198.7      0.00       0.0    6496.3 u_fifo/mem_reg[24][49]/D  336481.1250   -588.22  
+    0:00:37   56255.0      0.00       0.0    6495.9 u_fifo/mem_reg[24][47]/D  336955.2188   -587.49  
+    0:00:37   56311.3      0.00       0.0    6495.5 u_fifo/mem_reg[24][45]/D  337429.2812   -586.75  
+    0:00:37   56367.6      0.00       0.0    6495.1 u_fifo/mem_reg[24][43]/D  337903.3750   -586.02  
+    0:00:37   56423.9      0.00       0.0    6494.7 u_fifo/mem_reg[24][41]/D  338377.4688   -585.28  
+    0:00:38   56480.3      0.00       0.0    6494.3 u_fifo/mem_reg[24][39]/D  338851.5625   -584.55  
+    0:00:38   56536.6      0.00       0.0    6493.9 u_fifo/mem_reg[24][37]/D  339325.6250   -583.82  
+    0:00:38   56592.9      0.00       0.0    6493.6 u_fifo/mem_reg[24][35]/D  339799.7188   -583.08  
+    0:00:38   56649.2      0.00       0.0    6493.2 u_fifo/mem_reg[24][33]/D  340273.8125   -582.35  
+    0:00:38   56705.5      0.00       0.0    6492.8 u_fifo/mem_reg[24][31]/D  340747.9062   -581.61  
+    0:00:38   56761.8      0.00       0.0    6492.4 u_fifo/mem_reg[24][29]/D  341221.9688   -580.88  
+    0:00:38   56818.1      0.00       0.0    6492.0 u_fifo/mem_reg[24][27]/D  341696.0625   -580.14  
+    0:00:39   56874.5      0.00       0.0    6491.6 u_fifo/mem_reg[24][25]/D  342170.1562   -579.41  
+    0:00:39   56930.8      0.00       0.0    6491.2 u_fifo/mem_reg[24][23]/D  342644.2500   -578.67  
+    0:00:39   56987.1      0.00       0.0    6490.8 u_fifo/mem_reg[24][21]/D  343118.3125   -577.94  
+    0:00:39   57043.4      0.00       0.0    6490.5 u_fifo/mem_reg[24][19]/D  343592.4062   -577.20  
+    0:00:39   57099.7      0.00       0.0    6490.1 u_fifo/mem_reg[24][17]/D  344066.5000   -576.47  
+    0:00:39   57156.0      0.00       0.0    6489.7 u_fifo/mem_reg[24][15]/D  344540.5938   -575.73  
+    0:00:39   57212.4      0.00       0.0    6489.3 u_fifo/mem_reg[24][13]/D  345014.6875   -575.00  
+    0:00:39   57268.7      0.00       0.0    6488.9 u_fifo/mem_reg[24][11]/D  345488.7500   -574.26  
+    0:00:40   57325.0      0.00       0.0    6488.5 u_fifo/mem_reg[24][9]/D   345962.8438   -573.53  
+    0:00:40   57381.3      0.00       0.0    6488.1 u_fifo/mem_reg[24][7]/D   346436.9375   -572.79  
+    0:00:40   57437.6      0.00       0.0    6487.8 u_fifo/mem_reg[24][5]/D   346911.0312   -572.06  
+    0:00:40   57493.9      0.00       0.0    6487.4 u_fifo/mem_reg[24][3]/D   347385.0938   -571.32  
+    0:00:40   57550.3      0.00       0.0    6487.0 u_fifo/mem_reg[24][1]/D   347859.1875   -570.59  
+    0:00:40   57608.9      0.00       0.0    6486.6 u_fifo/mem_reg[23][63]/D  348353.0312   -569.82  
+    0:00:40   57665.2      0.00       0.0    6486.2 u_fifo/mem_reg[23][61]/D  348827.1250   -569.09  
+    0:00:41   57721.6      0.00       0.0    6485.8 u_fifo/mem_reg[23][59]/D  349301.2188   -568.35  
+    0:00:41   57777.9      0.00       0.0    6485.4 u_fifo/mem_reg[23][57]/D  349775.2812   -567.62  
+    0:00:41   57834.2      0.00       0.0    6485.1 u_fifo/mem_reg[23][55]/D  350249.3750   -566.88  
+    0:00:41   57890.5      0.00       0.0    6484.7 u_fifo/mem_reg[23][53]/D  350723.4688   -566.15  
+    0:00:41   57946.8      0.00       0.0    6484.3 u_fifo/mem_reg[23][51]/D  351197.5625   -565.41  
+    0:00:41   58003.1      0.00       0.0    6483.9 u_fifo/mem_reg[23][49]/D  351671.6250   -564.68  
+    0:00:41   58059.4      0.00       0.0    6483.5 u_fifo/mem_reg[23][47]/D  352145.7188   -563.95  
+    0:00:42   58115.8      0.00       0.0    6483.1 u_fifo/mem_reg[23][45]/D  352619.8125   -563.21  
+    0:00:42   58172.1      0.00       0.0    6482.7 u_fifo/mem_reg[23][43]/D  353093.9062   -562.48  
+    0:00:42   58228.4      0.00       0.0    6482.3 u_fifo/mem_reg[23][41]/D  353567.9688   -561.74  
+    0:00:42   58284.7      0.00       0.0    6482.0 u_fifo/mem_reg[23][39]/D  354042.0625   -561.01  
+    0:00:42   58341.0      0.00       0.0    6481.6 u_fifo/mem_reg[23][37]/D  354516.1562   -560.27  
+    0:00:42   58397.3      0.00       0.0    6481.2 u_fifo/mem_reg[23][35]/D  354990.2500   -559.54  
+    0:00:42   58453.7      0.00       0.0    6480.8 u_fifo/mem_reg[23][33]/D  355464.3125   -558.80  
+    0:00:43   58510.0      0.00       0.0    6480.4 u_fifo/mem_reg[23][31]/D  355938.4062   -558.07  
+    0:00:43   58566.3      0.00       0.0    6480.0 u_fifo/mem_reg[23][29]/D  356412.5000   -557.33  
+    0:00:43   58622.6      0.00       0.0    6479.6 u_fifo/mem_reg[23][27]/D  356886.5938   -556.60  
+    0:00:43   58678.9      0.00       0.0    6479.3 u_fifo/mem_reg[23][25]/D  357360.6875   -555.87  
+    0:00:43   58735.2      0.00       0.0    6478.9 u_fifo/mem_reg[23][23]/D  357834.7500   -555.13  
+    0:00:43   58791.6      0.00       0.0    6478.5 u_fifo/mem_reg[23][21]/D  358308.8438   -554.40  
+    0:00:43   58847.9      0.00       0.0    6478.1 u_fifo/mem_reg[23][19]/D  358782.9375   -553.66  
+    0:00:43   58904.2      0.00       0.0    6477.7 u_fifo/mem_reg[23][17]/D  359257.0312   -552.93  
+    0:00:44   58960.5      0.00       0.0    6477.3 u_fifo/mem_reg[23][15]/D  359731.0938   -552.19  
+    0:00:44   59016.8      0.00       0.0    6476.9 u_fifo/mem_reg[23][13]/D  360205.1875   -551.46  
+    0:00:44   59073.1      0.00       0.0    6476.6 u_fifo/mem_reg[23][11]/D  360679.2812   -550.72  
+    0:00:44   59129.5      0.00       0.0    6476.2 u_fifo/mem_reg[23][9]/D   361153.3750   -549.99  
+    0:00:44   59185.8      0.00       0.0    6475.8 u_fifo/mem_reg[23][7]/D   361627.4375   -549.25  
+    0:00:44   59242.1      0.00       0.0    6475.4 u_fifo/mem_reg[23][5]/D   362101.5312   -548.52  
+    0:00:44   59298.4      0.00       0.0    6475.0 u_fifo/mem_reg[23][3]/D   362575.6250   -547.78  
+    0:00:45   59354.7      0.00       0.0    6474.6 u_fifo/mem_reg[23][1]/D   363049.7188   -547.05  
+    0:00:45   59413.4      0.00       0.0    6474.2 u_fifo/mem_reg[22][63]/D  363543.5625   -546.29  
+    0:00:45   59469.7      0.00       0.0    6473.8 u_fifo/mem_reg[22][61]/D  364017.6250   -545.55  
+    0:00:45   59526.0      0.00       0.0    6473.5 u_fifo/mem_reg[22][59]/D  364491.7188   -544.82  
+    0:00:45   59582.3      0.00       0.0    6473.1 u_fifo/mem_reg[22][57]/D  364965.8125   -544.08  
+    0:00:45   59638.6      0.00       0.0    6472.7 u_fifo/mem_reg[22][55]/D  365439.9062   -543.35  
+    0:00:45   59695.0      0.00       0.0    6472.3 u_fifo/mem_reg[22][53]/D  365913.9688   -542.61  
+    0:00:46   59751.3      0.00       0.0    6471.9 u_fifo/mem_reg[22][51]/D  366388.0625   -541.88  
+    0:00:46   59807.6      0.00       0.0    6471.5 u_fifo/mem_reg[22][49]/D  366862.1562   -541.14  
+    0:00:46   59863.9      0.00       0.0    6471.1 u_fifo/mem_reg[22][47]/D  367336.2500   -540.41  
+    0:00:46   59920.2      0.00       0.0    6470.8 u_fifo/mem_reg[22][45]/D  367810.3125   -539.67  
+    0:00:46   59976.5      0.00       0.0    6470.4 u_fifo/mem_reg[22][43]/D  368284.4062   -538.94  
+    0:00:46   60032.9      0.00       0.0    6470.0 u_fifo/mem_reg[22][41]/D  368758.5000   -538.20  
+    0:00:46   60089.2      0.00       0.0    6469.6 u_fifo/mem_reg[22][39]/D  369232.5938   -537.47  
+    0:00:47   60145.5      0.00       0.0    6469.2 u_fifo/mem_reg[22][37]/D  369706.6562   -536.74  
+    0:00:47   60201.8      0.00       0.0    6468.8 u_fifo/mem_reg[22][35]/D  370180.7500   -536.00  
+    0:00:47   60258.1      0.00       0.0    6468.4 u_fifo/mem_reg[22][33]/D  370654.8438   -535.27  
+    0:00:47   60314.4      0.00       0.0    6468.1 u_fifo/mem_reg[22][31]/D  371128.9375   -534.53  
+    0:00:47   60370.8      0.00       0.0    6467.7 u_fifo/mem_reg[22][29]/D  371603.0312   -533.80  
+    0:00:47   60427.1      0.00       0.0    6467.3 u_fifo/mem_reg[22][27]/D  372077.0938   -533.06  
+    0:00:47   60483.4      0.00       0.0    6466.9 u_fifo/mem_reg[22][25]/D  372551.1875   -532.33  
+    0:00:48   60539.7      0.00       0.0    6466.5 u_fifo/mem_reg[22][23]/D  373025.2812   -531.59  
+    0:00:48   60596.0      0.00       0.0    6466.1 u_fifo/mem_reg[22][21]/D  373499.3750   -530.86  
+    0:00:48   60652.3      0.00       0.0    6465.7 u_fifo/mem_reg[22][19]/D  373973.4375   -530.12  
+    0:00:48   60708.6      0.00       0.0    6465.3 u_fifo/mem_reg[22][17]/D  374447.5312   -529.39  
+    0:00:48   60765.0      0.00       0.0    6465.0 u_fifo/mem_reg[22][15]/D  374921.6250   -528.66  
+    0:00:48   60821.3      0.00       0.0    6464.6 u_fifo/mem_reg[22][13]/D  375395.7188   -527.92  
+    0:00:48   60877.6      0.00       0.0    6464.2 u_fifo/mem_reg[22][11]/D  375869.7812   -527.19  
+    0:00:48   60933.9      0.00       0.0    6463.8 u_fifo/mem_reg[22][9]/D   376343.8750   -526.45  
+    0:00:49   60990.2      0.00       0.0    6463.4 u_fifo/mem_reg[22][7]/D   376817.9688   -525.72  
+    0:00:49   61046.5      0.00       0.0    6463.0 u_fifo/mem_reg[22][5]/D   377292.0625   -524.98  
+    0:00:49   61102.9      0.00       0.0    6462.6 u_fifo/mem_reg[22][3]/D   377766.1250   -524.25  
+    0:00:49   61159.2      0.00       0.0    6462.3 u_fifo/mem_reg[22][1]/D   378240.2188   -523.51  
+    0:00:49   61217.4      0.00       0.0    6461.9 u_fifo/mem_reg[21][63]/D  378737.2188   -522.76  
+    0:00:49   61273.7      0.00       0.0    6461.5 u_fifo/mem_reg[21][61]/D  379211.3125   -522.02  
+    0:00:49   61330.0      0.00       0.0    6461.1 u_fifo/mem_reg[21][59]/D  379685.4062   -521.29  
+    0:00:50   61386.3      0.00       0.0    6460.7 u_fifo/mem_reg[21][57]/D  380159.5000   -520.55  
+    0:00:50   61442.6      0.00       0.0    6460.3 u_fifo/mem_reg[21][55]/D  380633.5625   -519.82  
+    0:00:50   61498.9      0.00       0.0    6459.9 u_fifo/mem_reg[21][53]/D  381107.6562   -519.09  
+    0:00:50   61555.3      0.00       0.0    6459.6 u_fifo/mem_reg[21][51]/D  381581.7500   -518.35  
+    0:00:50   61611.6      0.00       0.0    6459.2 u_fifo/mem_reg[21][49]/D  382055.8438   -517.62  
+    0:00:50   61667.9      0.00       0.0    6458.8 u_fifo/mem_reg[21][47]/D  382529.9062   -516.88  
+    0:00:51   61724.2      0.00       0.0    6458.4 u_fifo/mem_reg[21][45]/D  383004.0000   -516.15  
+    0:00:51   61780.5      0.00       0.0    6458.0 u_fifo/mem_reg[21][43]/D  383478.0938   -515.41  
+    0:00:51   61836.8      0.00       0.0    6457.6 u_fifo/mem_reg[21][41]/D  383952.1875   -514.68  
+    0:00:51   61893.2      0.00       0.0    6457.2 u_fifo/mem_reg[21][39]/D  384426.2812   -513.94  
+    0:00:51   61949.5      0.00       0.0    6456.8 u_fifo/mem_reg[21][37]/D  384900.3438   -513.21  
+    0:00:51   62005.8      0.00       0.0    6456.5 u_fifo/mem_reg[21][35]/D  385374.4375   -512.47  
+    0:00:51   62062.1      0.00       0.0    6456.1 u_fifo/mem_reg[21][33]/D  385848.5312   -511.74  
+    0:00:52   62118.4      0.00       0.0    6455.7 u_fifo/mem_reg[21][31]/D  386322.6250   -511.00  
+    0:00:52   62174.7      0.00       0.0    6455.3 u_fifo/mem_reg[21][29]/D  386796.6875   -510.27  
+    0:00:52   62231.1      0.00       0.0    6454.9 u_fifo/mem_reg[21][27]/D  387270.7812   -509.54  
+    0:00:52   62287.4      0.00       0.0    6454.5 u_fifo/mem_reg[21][25]/D  387744.8750   -508.80  
+    0:00:52   62343.7      0.00       0.0    6454.1 u_fifo/mem_reg[21][23]/D  388218.9688   -508.07  
+    0:00:52   62400.0      0.00       0.0    6453.8 u_fifo/mem_reg[21][21]/D  388693.0312   -507.33  
+    0:00:52   62456.3      0.00       0.0    6453.4 u_fifo/mem_reg[21][19]/D  389167.1250   -506.60  
+    0:00:53   62512.6      0.00       0.0    6453.0 u_fifo/mem_reg[21][17]/D  389641.2188   -505.86  
+    0:00:53   62569.0      0.00       0.0    6452.6 u_fifo/mem_reg[21][15]/D  390115.3125   -505.13  
+    0:00:53   62625.3      0.00       0.0    6452.2 u_fifo/mem_reg[21][13]/D  390589.3750   -504.39  
+    0:00:53   62681.6      0.00       0.0    6451.8 u_fifo/mem_reg[21][11]/D  391063.4688   -503.66  
+    0:00:53   62737.9      0.00       0.0    6451.4 u_fifo/mem_reg[21][9]/D   391537.5625   -502.92  
+    0:00:53   62794.2      0.00       0.0    6451.1 u_fifo/mem_reg[21][7]/D   392011.6562   -502.19  
+    0:00:53   62850.5      0.00       0.0    6450.7 u_fifo/mem_reg[21][5]/D   392485.7500   -501.45  
+    0:00:54   62906.8      0.00       0.0    6450.3 u_fifo/mem_reg[21][3]/D   392959.8125   -500.72  
+    0:00:54   62963.2      0.00       0.0    6449.9 u_fifo/mem_reg[21][1]/D   393433.9062   -499.99  
+    0:00:54   63019.9      0.00       0.0    6449.5 u_fifo/mem_reg[20][63]/D  393904.8438   -499.25  
+    0:00:54   63076.3      0.00       0.0    6449.1 u_fifo/mem_reg[20][61]/D  394378.9062   -498.51  
+    0:00:54   63132.6      0.00       0.0    6448.7 u_fifo/mem_reg[20][59]/D  394853.0000   -497.78  
+    0:00:54   63188.9      0.00       0.0    6448.3 u_fifo/mem_reg[20][57]/D  395327.0938   -497.04  
+    0:00:54   63245.2      0.00       0.0    6448.0 u_fifo/mem_reg[20][55]/D  395801.1875   -496.31  
+    0:00:55   63301.5      0.00       0.0    6447.6 u_fifo/mem_reg[20][53]/D  396275.2500   -495.57  
+    0:00:55   63357.8      0.00       0.0    6447.2 u_fifo/mem_reg[20][51]/D  396749.3438   -494.84  
+    0:00:55   63414.2      0.00       0.0    6446.8 u_fifo/mem_reg[20][49]/D  397223.4375   -494.10  
+    0:00:55   63470.5      0.00       0.0    6446.4 u_fifo/mem_reg[20][47]/D  397697.5312   -493.37  
+    0:00:55   63526.8      0.00       0.0    6446.0 u_fifo/mem_reg[20][45]/D  398171.5938   -492.63  
+    0:00:55   63583.1      0.00       0.0    6445.6 u_fifo/mem_reg[20][43]/D  398645.6875   -491.90  
+    0:00:55   63639.4      0.00       0.0    6445.3 u_fifo/mem_reg[20][41]/D  399119.7812   -491.16  
+    0:00:55   63695.7      0.00       0.0    6444.9 u_fifo/mem_reg[20][39]/D  399593.8750   -490.43  
+    0:00:56   63752.1      0.00       0.0    6444.5 u_fifo/mem_reg[20][37]/D  400067.9688   -489.69  
+    0:00:56   63808.4      0.00       0.0    6444.1 u_fifo/mem_reg[20][35]/D  400542.0312   -488.96  
+    0:00:56   63864.7      0.00       0.0    6443.7 u_fifo/mem_reg[20][33]/D  401016.1250   -488.22  
+    0:00:56   63921.0      0.00       0.0    6443.3 u_fifo/mem_reg[20][31]/D  401490.2188   -487.49  
+    0:00:56   63977.3      0.00       0.0    6442.9 u_fifo/mem_reg[20][29]/D  401964.3125   -486.75  
+    0:00:56   64033.6      0.00       0.0    6442.6 u_fifo/mem_reg[20][27]/D  402438.3750   -486.02  
+    0:00:56   64090.0      0.00       0.0    6442.2 u_fifo/mem_reg[20][25]/D  402912.4688   -485.28  
+    0:00:57   64146.3      0.00       0.0    6441.8 u_fifo/mem_reg[20][23]/D  403386.5625   -484.55  
+    0:00:57   64202.6      0.00       0.0    6441.4 u_fifo/mem_reg[20][21]/D  403860.6562   -483.81  
+    0:00:57   64258.9      0.00       0.0    6441.0 u_fifo/mem_reg[20][19]/D  404334.7188   -483.08  
+    0:00:57   64315.2      0.00       0.0    6440.6 u_fifo/mem_reg[20][17]/D  404808.8125   -482.34  
+    0:00:57   64371.5      0.00       0.0    6440.2 u_fifo/mem_reg[20][15]/D  405282.9062   -481.61  
+    0:00:57   64427.8      0.00       0.0    6439.8 u_fifo/mem_reg[20][13]/D  405757.0000   -480.87  
+    0:00:57   64484.2      0.00       0.0    6439.5 u_fifo/mem_reg[20][11]/D  406231.0625   -480.14  
+    0:00:58   64540.5      0.00       0.0    6439.1 u_fifo/mem_reg[20][9]/D   406705.1562   -479.40  
+    0:00:58   64596.8      0.00       0.0    6438.7 u_fifo/mem_reg[20][7]/D   407179.2500   -478.67  
+    0:00:58   64653.1      0.00       0.0    6438.3 u_fifo/mem_reg[20][5]/D   407653.3438   -477.93  
+    0:00:58   64709.4      0.00       0.0    6437.9 u_fifo/mem_reg[20][3]/D   408127.4375   -477.20  
+    0:00:58   64765.7      0.00       0.0    6437.5 u_fifo/mem_reg[20][1]/D   408601.5000   -476.46  
+    0:00:58   64826.8      0.00       0.0    6436.9 u_fifo/mem_reg[19][62]/D  409115.0938   -475.66  
+    0:00:58   64883.1      0.00       0.0    6436.6 u_fifo/mem_reg[19][60]/D  409589.1875   -474.92  
+    0:00:58   64939.4      0.00       0.0    6436.2 u_fifo/mem_reg[19][58]/D  410063.2812   -474.19  
+    0:00:59   64995.7      0.00       0.0    6435.8 u_fifo/mem_reg[19][56]/D  410537.3750   -473.45  
+    0:00:59   65052.0      0.00       0.0    6435.4 u_fifo/mem_reg[19][54]/D  411011.4375   -472.72  
+    0:00:59   65108.3      0.00       0.0    6435.0 u_fifo/mem_reg[19][52]/D  411485.5312   -471.99  
+    0:00:59   65164.7      0.00       0.0    6434.6 u_fifo/mem_reg[19][50]/D  411959.6250   -471.25  
+    0:00:59   65221.0      0.00       0.0    6434.2 u_fifo/mem_reg[19][48]/D  412433.7188   -470.52  
+    0:00:59   65277.3      0.00       0.0    6433.9 u_fifo/mem_reg[19][46]/D  412907.7812   -469.78  
+    0:00:59   65333.6      0.00       0.0    6433.5 u_fifo/mem_reg[19][44]/D  413381.8750   -469.05  
+    0:01:00   65389.9      0.00       0.0    6433.1 u_fifo/mem_reg[19][42]/D  413855.9688   -468.31  
+    0:01:00   65446.2      0.00       0.0    6432.7 u_fifo/mem_reg[19][40]/D  414330.0625   -467.58  
+    0:01:00   65502.5      0.00       0.0    6432.3 u_fifo/mem_reg[19][38]/D  414804.1250   -466.84  
+    0:01:00   65558.9      0.00       0.0    6431.9 u_fifo/mem_reg[19][36]/D  415278.2188   -466.11  
+    0:01:00   65615.2      0.00       0.0    6431.5 u_fifo/mem_reg[19][34]/D  415752.3125   -465.37  
+    0:01:00   65671.5      0.00       0.0    6431.2 u_fifo/mem_reg[19][32]/D  416226.4062   -464.64  
+    0:01:00   65727.8      0.00       0.0    6430.8 u_fifo/mem_reg[19][30]/D  416700.4688   -463.90  
+    0:01:01   65784.1      0.00       0.0    6430.4 u_fifo/mem_reg[19][28]/D  417174.5625   -463.17  
+    0:01:01   65840.4      0.00       0.0    6430.0 u_fifo/mem_reg[19][26]/D  417648.6562   -462.44  
+    0:01:01   65896.8      0.00       0.0    6429.6 u_fifo/mem_reg[19][24]/D  418122.7500   -461.70  
+    0:01:01   65953.1      0.00       0.0    6429.2 u_fifo/mem_reg[19][22]/D  418596.8438   -460.97  
+    0:01:01   66009.4      0.00       0.0    6428.8 u_fifo/mem_reg[19][20]/D  419070.9062   -460.23  
+    0:01:01   66065.7      0.00       0.0    6428.4 u_fifo/mem_reg[19][18]/D  419545.0000   -459.50  
+    0:01:01   66122.0      0.00       0.0    6428.1 u_fifo/mem_reg[19][16]/D  420019.0938   -458.76  
+    0:01:02   66178.3      0.00       0.0    6427.7 u_fifo/mem_reg[19][14]/D  420493.1875   -458.03  
+    0:01:02   66234.7      0.00       0.0    6427.3 u_fifo/mem_reg[19][12]/D  420967.2500   -457.29  
+    0:01:02   66291.0      0.00       0.0    6426.9 u_fifo/mem_reg[19][10]/D  421441.3438   -456.56  
+    0:01:02   66347.3      0.00       0.0    6426.5 u_fifo/mem_reg[19][8]/D   421915.4375   -455.82  
+    0:01:02   66403.6      0.00       0.0    6426.1 u_fifo/mem_reg[19][6]/D   422389.5312   -455.09  
+    0:01:02   66459.9      0.00       0.0    6425.7 u_fifo/mem_reg[19][4]/D   422863.5938   -454.36  
+    0:01:02   66516.2      0.00       0.0    6425.4 u_fifo/mem_reg[19][2]/D   423337.6875   -453.62  
+    0:01:03   66572.6      0.00       0.0    6425.0 u_fifo/mem_reg[18][0]/D   423811.7812   -452.89  
+    0:01:03   66631.2      0.00       0.0    6424.6 u_fifo/mem_reg[18][62]/D  424305.6250   -452.12  
+    0:01:03   66687.5      0.00       0.0    6424.2 u_fifo/mem_reg[18][60]/D  424779.7188   -451.39  
+    0:01:03   66743.8      0.00       0.0    6423.8 u_fifo/mem_reg[18][58]/D  425253.7812   -450.65  
+    0:01:03   66800.2      0.00       0.0    6423.4 u_fifo/mem_reg[18][56]/D  425727.8750   -449.92  
+    0:01:03   66856.5      0.00       0.0    6423.0 u_fifo/mem_reg[18][54]/D  426201.9688   -449.18  
+    0:01:03   66912.8      0.00       0.0    6422.7 u_fifo/mem_reg[18][52]/D  426676.0625   -448.45  
+    0:01:04   66969.1      0.00       0.0    6422.3 u_fifo/mem_reg[18][50]/D  427150.1250   -447.71  
+    0:01:04   67025.4      0.00       0.0    6421.9 u_fifo/mem_reg[18][48]/D  427624.2188   -446.98  
+    0:01:04   67081.7      0.00       0.0    6421.5 u_fifo/mem_reg[18][46]/D  428098.3125   -446.24  
+    0:01:04   67138.1      0.00       0.0    6421.1 u_fifo/mem_reg[18][44]/D  428572.4062   -445.51  
+    0:01:04   67194.4      0.00       0.0    6420.7 u_fifo/mem_reg[18][42]/D  429046.4688   -444.78  
+    0:01:04   67250.7      0.00       0.0    6420.3 u_fifo/mem_reg[18][40]/D  429520.5625   -444.04  
+    0:01:04   67307.0      0.00       0.0    6419.9 u_fifo/mem_reg[18][38]/D  429994.6562   -443.31  
+    0:01:05   67363.3      0.00       0.0    6419.6 u_fifo/mem_reg[18][36]/D  430468.7500   -442.57  
+    0:01:05   67419.6      0.00       0.0    6419.2 u_fifo/mem_reg[18][34]/D  430942.8438   -441.84  
+    0:01:05   67476.0      0.00       0.0    6418.8 u_fifo/mem_reg[18][32]/D  431416.9062   -441.10  
+    0:01:05   67532.3      0.00       0.0    6418.4 u_fifo/mem_reg[18][30]/D  431891.0000   -440.37  
+    0:01:05   67588.6      0.00       0.0    6418.0 u_fifo/mem_reg[18][28]/D  432365.0938   -439.63  
+    0:01:05   67644.9      0.00       0.0    6417.6 u_fifo/mem_reg[18][26]/D  432839.1875   -438.90  
+    0:01:05   67701.2      0.00       0.0    6417.2 u_fifo/mem_reg[18][24]/D  433313.2500   -438.16  
+    0:01:06   67757.5      0.00       0.0    6416.9 u_fifo/mem_reg[18][22]/D  433787.3438   -437.43  
+    0:01:06   67813.8      0.00       0.0    6416.5 u_fifo/mem_reg[18][20]/D  434261.4375   -436.69  
+    0:01:06   67870.2      0.00       0.0    6416.1 u_fifo/mem_reg[18][18]/D  434735.5312   -435.96  
+    0:01:06   67926.5      0.00       0.0    6415.7 u_fifo/mem_reg[18][16]/D  435209.5938   -435.23  
+    0:01:06   67982.8      0.00       0.0    6415.3 u_fifo/mem_reg[18][14]/D  435683.6875   -434.49  
+    0:01:06   68039.1      0.00       0.0    6414.9 u_fifo/mem_reg[18][12]/D  436157.7812   -433.76  
+    0:01:06   68095.4      0.00       0.0    6414.5 u_fifo/mem_reg[18][10]/D  436631.8750   -433.02  
+    0:01:07   68151.7      0.00       0.0    6414.2 u_fifo/mem_reg[18][8]/D   437105.9375   -432.29  
+    0:01:07   68208.1      0.00       0.0    6413.8 u_fifo/mem_reg[18][6]/D   437580.0312   -431.55  
+    0:01:07   68264.4      0.00       0.0    6413.4 u_fifo/mem_reg[18][4]/D   438054.1250   -430.82  
+    0:01:07   68320.7      0.00       0.0    6413.0 u_fifo/mem_reg[18][2]/D   438528.2188   -430.08  
+    0:01:07   68377.0      0.00       0.0    6412.6 u_fifo/mem_reg[17][0]/D   439002.3125   -429.35  
+    0:01:07   68435.7      0.00       0.0    6412.2 u_fifo/mem_reg[17][62]/D  439496.1250   -428.58  
+    0:01:08   68492.0      0.00       0.0    6411.8 u_fifo/mem_reg[17][60]/D  439970.2188   -427.85  
+    0:01:08   68548.3      0.00       0.0    6411.4 u_fifo/mem_reg[17][58]/D  440444.3125   -427.11  
+    0:01:08   68604.6      0.00       0.0    6411.1 u_fifo/mem_reg[17][56]/D  440918.4062   -426.38  
+    0:01:08   68660.9      0.00       0.0    6410.7 u_fifo/mem_reg[17][54]/D  441392.4688   -425.65  
+    0:01:08   68717.3      0.00       0.0    6410.3 u_fifo/mem_reg[17][52]/D  441866.5625   -424.91  
+    0:01:08   68773.6      0.00       0.0    6409.9 u_fifo/mem_reg[17][50]/D  442340.6562   -424.18  
+    0:01:08   68829.9      0.00       0.0    6409.5 u_fifo/mem_reg[17][48]/D  442814.7500   -423.44  
+    0:01:08   68886.2      0.00       0.0    6409.1 u_fifo/mem_reg[17][46]/D  443288.8438   -422.71  
+    0:01:09   68942.5      0.00       0.0    6408.7 u_fifo/mem_reg[17][44]/D  443762.9062   -421.97  
+    0:01:09   68998.8      0.00       0.0    6408.4 u_fifo/mem_reg[17][42]/D  444237.0000   -421.24  
+    0:01:09   69055.1      0.00       0.0    6408.0 u_fifo/mem_reg[17][40]/D  444711.0938   -420.50  
+    0:01:09   69111.5      0.00       0.0    6407.6 u_fifo/mem_reg[17][38]/D  445185.1875   -419.77  
+    0:01:09   69167.8      0.00       0.0    6407.2 u_fifo/mem_reg[17][36]/D  445659.2500   -419.03  
+    0:01:09   69224.1      0.00       0.0    6406.8 u_fifo/mem_reg[17][34]/D  446133.3438   -418.30  
+    0:01:09   69280.4      0.00       0.0    6406.4 u_fifo/mem_reg[17][32]/D  446607.4375   -417.57  
+    0:01:10   69336.7      0.00       0.0    6406.0 u_fifo/mem_reg[17][30]/D  447081.5312   -416.83  
+    0:01:10   69393.0      0.00       0.0    6405.6 u_fifo/mem_reg[17][28]/D  447555.5938   -416.10  
+    0:01:10   69449.4      0.00       0.0    6405.3 u_fifo/mem_reg[17][26]/D  448029.6875   -415.36  
+    0:01:10   69505.7      0.00       0.0    6404.9 u_fifo/mem_reg[17][24]/D  448503.7812   -414.63  
+    0:01:10   69562.0      0.00       0.0    6404.5 u_fifo/mem_reg[17][22]/D  448977.8750   -413.89  
+    0:01:10   69618.3      0.00       0.0    6404.1 u_fifo/mem_reg[17][20]/D  449451.9375   -413.16  
+    0:01:10   69674.6      0.00       0.0    6403.7 u_fifo/mem_reg[17][18]/D  449926.0312   -412.42  
+    0:01:11   69730.9      0.00       0.0    6403.3 u_fifo/mem_reg[17][16]/D  450400.1250   -411.69  
+    0:01:11   69787.3      0.00       0.0    6402.9 u_fifo/mem_reg[17][14]/D  450874.2188   -410.95  
+    0:01:11   69843.6      0.00       0.0    6402.6 u_fifo/mem_reg[17][12]/D  451348.3125   -410.22  
+    0:01:11   69899.9      0.00       0.0    6402.2 u_fifo/mem_reg[17][10]/D  451822.3750   -409.48  
+    0:01:11   69956.2      0.00       0.0    6401.8 u_fifo/mem_reg[17][8]/D   452296.4688   -408.75  
+    0:01:11   70012.5      0.00       0.0    6401.4 u_fifo/mem_reg[17][6]/D   452770.5625   -408.02  
+    0:01:11   70068.8      0.00       0.0    6401.0 u_fifo/mem_reg[17][4]/D   453244.6562   -407.28  
+    0:01:12   70125.2      0.00       0.0    6400.6 u_fifo/mem_reg[17][2]/D   453718.7188   -406.55  
+    0:01:12   70181.5      0.00       0.0    6400.2 u_fifo/mem_reg[16][0]/D   454192.8125   -405.81  
+    0:01:12   70240.1      0.00       0.0    6399.9 u_fifo/mem_reg[16][62]/D  454686.6562   -405.05  
+    0:01:12   70296.4      0.00       0.0    6399.5 u_fifo/mem_reg[16][60]/D  455160.7500   -404.31  
+    0:01:12   70352.8      0.00       0.0    6399.1 u_fifo/mem_reg[16][58]/D  455634.8125   -403.58  
+    0:01:12   70409.1      0.00       0.0    6398.7 u_fifo/mem_reg[16][56]/D  456108.9062   -402.84  
+    0:01:12   70465.4      0.00       0.0    6398.3 u_fifo/mem_reg[16][54]/D  456583.0000   -402.11  
+    0:01:13   70521.7      0.00       0.0    6397.9 u_fifo/mem_reg[16][52]/D  457057.0938   -401.37  
+    0:01:13   70578.0      0.00       0.0    6397.5 u_fifo/mem_reg[16][50]/D  457531.1875   -400.64  
+    0:01:13   70634.3      0.00       0.0    6397.1 u_fifo/mem_reg[16][48]/D  458005.2500   -399.90  
+    0:01:13   70690.7      0.00       0.0    6396.8 u_fifo/mem_reg[16][46]/D  458479.3438   -399.17  
+    0:01:13   70747.0      0.00       0.0    6396.4 u_fifo/mem_reg[16][44]/D  458953.4375   -398.44  
+    0:01:13   70803.3      0.00       0.0    6396.0 u_fifo/mem_reg[16][42]/D  459427.5312   -397.70  
+    0:01:13   70859.6      0.00       0.0    6395.6 u_fifo/mem_reg[16][40]/D  459901.5938   -396.97  
+    0:01:14   70915.9      0.00       0.0    6395.2 u_fifo/mem_reg[16][38]/D  460375.6875   -396.23  
+    0:01:14   70972.2      0.00       0.0    6394.8 u_fifo/mem_reg[16][36]/D  460849.7812   -395.50  
+    0:01:14   71028.6      0.00       0.0    6394.4 u_fifo/mem_reg[16][34]/D  461323.8750   -394.76  
+    0:01:14   71084.9      0.00       0.0    6394.1 u_fifo/mem_reg[16][32]/D  461797.9375   -394.03  
+    0:01:14   71141.2      0.00       0.0    6393.7 u_fifo/mem_reg[16][30]/D  462272.0312   -393.29  
+    0:01:14   71197.5      0.00       0.0    6393.3 u_fifo/mem_reg[16][28]/D  462746.1250   -392.56  
+    0:01:14   71253.8      0.00       0.0    6392.9 u_fifo/mem_reg[16][26]/D  463220.2188   -391.82  
+    0:01:15   71310.1      0.00       0.0    6392.5 u_fifo/mem_reg[16][24]/D  463694.2812   -391.09  
+    0:01:15   71366.4      0.00       0.0    6392.1 u_fifo/mem_reg[16][22]/D  464168.3750   -390.36  
+    0:01:15   71422.8      0.00       0.0    6391.7 u_fifo/mem_reg[16][20]/D  464642.4688   -389.62  
+    0:01:15   71479.1      0.00       0.0    6391.4 u_fifo/mem_reg[16][18]/D  465116.5625   -388.89  
+    0:01:15   71535.4      0.00       0.0    6391.0 u_fifo/mem_reg[16][16]/D  465590.6562   -388.15  
+    0:01:15   71591.7      0.00       0.0    6390.6 u_fifo/mem_reg[16][14]/D  466064.7188   -387.42  
+    0:01:15   71648.0      0.00       0.0    6390.2 u_fifo/mem_reg[16][12]/D  466538.8125   -386.68  
+    0:01:16   71704.3      0.00       0.0    6389.8 u_fifo/mem_reg[16][10]/D  467012.9062   -385.95  
+    0:01:16   71760.7      0.00       0.0    6389.4 u_fifo/mem_reg[16][8]/D   467487.0000   -385.21  
+    0:01:16   71817.0      0.00       0.0    6389.0 u_fifo/mem_reg[16][6]/D   467961.0625   -384.48  
+    0:01:16   71873.3      0.00       0.0    6388.6 u_fifo/mem_reg[16][4]/D   468435.1562   -383.74  
+    0:01:16   71929.6      0.00       0.0    6388.3 u_fifo/mem_reg[16][2]/D   468909.2500   -383.01  
+    0:01:16   71985.9      0.00       0.0    6387.9 u_fifo/mem_reg[15][0]/D   469383.3438   -382.27  
+    0:01:16   72044.6      0.00       0.0    6387.5 u_fifo/mem_reg[15][62]/D  469877.1875   -381.51  
+    0:01:17   72100.9      0.00       0.0    6387.1 u_fifo/mem_reg[15][60]/D  470351.2500   -380.77  
+    0:01:17   72157.2      0.00       0.0    6386.7 u_fifo/mem_reg[15][58]/D  470825.3438   -380.04  
+    0:01:17   72213.5      0.00       0.0    6386.3 u_fifo/mem_reg[15][56]/D  471299.4375   -379.30  
+    0:01:17   72269.9      0.00       0.0    6385.9 u_fifo/mem_reg[15][54]/D  471773.5312   -378.57  
+    0:01:17   72326.2      0.00       0.0    6385.6 u_fifo/mem_reg[15][52]/D  472247.5938   -377.84  
+    0:01:17   72382.5      0.00       0.0    6385.2 u_fifo/mem_reg[15][50]/D  472721.6875   -377.10  
+    0:01:17   72438.8      0.00       0.0    6384.8 u_fifo/mem_reg[15][48]/D  473195.7812   -376.37  
+    0:01:17   72495.1      0.00       0.0    6384.4 u_fifo/mem_reg[15][46]/D  473669.8750   -375.63  
+    0:01:18   72551.4      0.00       0.0    6384.0 u_fifo/mem_reg[15][44]/D  474143.9375   -374.90  
+    0:01:18   72607.7      0.00       0.0    6383.6 u_fifo/mem_reg[15][42]/D  474618.0312   -374.16  
+    0:01:18   72664.1      0.00       0.0    6383.2 u_fifo/mem_reg[15][40]/D  475092.1250   -373.43  
+    0:01:18   72720.4      0.00       0.0    6382.9 u_fifo/mem_reg[15][38]/D  475566.2188   -372.69  
+    0:01:18   72776.7      0.00       0.0    6382.5 u_fifo/mem_reg[15][36]/D  476040.2812   -371.96  
+    0:01:18   72833.0      0.00       0.0    6382.1 u_fifo/mem_reg[15][34]/D  476514.3750   -371.22  
+    0:01:18   72889.3      0.00       0.0    6381.7 u_fifo/mem_reg[15][32]/D  476988.4688   -370.49  
+    0:01:19   72945.6      0.00       0.0    6381.3 u_fifo/mem_reg[15][30]/D  477462.5625   -369.75  
+    0:01:19   73002.0      0.00       0.0    6380.9 u_fifo/mem_reg[15][28]/D  477936.6562   -369.02  
+    0:01:19   73058.3      0.00       0.0    6380.5 u_fifo/mem_reg[15][26]/D  478410.7188   -368.28  
+    0:01:19   73114.6      0.00       0.0    6380.1 u_fifo/mem_reg[15][24]/D  478884.8125   -367.55  
+    0:01:19   73170.9      0.00       0.0    6379.8 u_fifo/mem_reg[15][22]/D  479358.9062   -366.81  
+    0:01:19   73227.2      0.00       0.0    6379.4 u_fifo/mem_reg[15][20]/D  479833.0000   -366.08  
+    0:01:19   73283.5      0.00       0.0    6379.0 u_fifo/mem_reg[15][18]/D  480307.0625   -365.34  
+    0:01:19   73339.9      0.00       0.0    6378.6 u_fifo/mem_reg[15][16]/D  480781.1562   -364.61  
+    0:01:20   73396.2      0.00       0.0    6378.2 u_fifo/mem_reg[15][14]/D  481255.2500   -363.87  
+    0:01:20   73452.5      0.00       0.0    6377.8 u_fifo/mem_reg[15][12]/D  481729.3438   -363.14  
+    0:01:20   73508.8      0.00       0.0    6377.4 u_fifo/mem_reg[15][10]/D  482203.4062   -362.40  
+    0:01:20   73565.1      0.00       0.0    6377.1 u_fifo/mem_reg[15][8]/D   482677.5000   -361.67  
+    0:01:20   73621.4      0.00       0.0    6376.7 u_fifo/mem_reg[15][6]/D   483151.5938   -360.93  
+    0:01:20   73677.8      0.00       0.0    6376.3 u_fifo/mem_reg[15][4]/D   483625.6875   -360.20  
+    0:01:20   73734.1      0.00       0.0    6375.9 u_fifo/mem_reg[15][2]/D   484099.7500   -359.46  
+    0:01:20   73790.4      0.00       0.0    6375.5 u_fifo/mem_reg[14][0]/D   484573.8438   -358.73  
+    0:01:21   73849.0      0.00       0.0    6375.1 u_fifo/mem_reg[14][62]/D  485067.6875   -357.96  
+    0:01:21   73905.4      0.00       0.0    6374.7 u_fifo/mem_reg[14][60]/D  485541.7812   -357.23  
+    0:01:21   73961.7      0.00       0.0    6374.4 u_fifo/mem_reg[14][58]/D  486015.8750   -356.49  
+    0:01:21   74018.0      0.00       0.0    6374.0 u_fifo/mem_reg[14][56]/D  486489.9375   -355.76  
+    0:01:21   74074.3      0.00       0.0    6373.6 u_fifo/mem_reg[14][54]/D  486964.0312   -355.02  
+    0:01:21   74130.6      0.00       0.0    6373.2 u_fifo/mem_reg[14][52]/D  487438.1250   -354.29  
+    0:01:21   74186.9      0.00       0.0    6372.8 u_fifo/mem_reg[14][50]/D  487912.2188   -353.55  
+    0:01:21   74243.3      0.00       0.0    6372.4 u_fifo/mem_reg[14][48]/D  488386.2812   -352.82  
+    0:01:22   74299.6      0.00       0.0    6372.0 u_fifo/mem_reg[14][46]/D  488860.3750   -352.08  
+    0:01:22   74355.9      0.00       0.0    6371.6 u_fifo/mem_reg[14][44]/D  489334.4688   -351.35  
+    0:01:22   74412.2      0.00       0.0    6371.3 u_fifo/mem_reg[14][42]/D  489808.5625   -350.61  
+    0:01:22   74468.5      0.00       0.0    6370.9 u_fifo/mem_reg[14][40]/D  490282.6562   -349.88  
+    0:01:22   74524.8      0.00       0.0    6370.5 u_fifo/mem_reg[14][38]/D  490756.7188   -349.14  
+    0:01:22   74581.2      0.00       0.0    6370.1 u_fifo/mem_reg[14][36]/D  491230.8125   -348.41  
+    0:01:22   74637.5      0.00       0.0    6369.7 u_fifo/mem_reg[14][34]/D  491704.9062   -347.67  
+    0:01:22   74693.8      0.00       0.0    6369.3 u_fifo/mem_reg[14][32]/D  492179.0000   -346.94  
+    0:01:23   74750.1      0.00       0.0    6368.9 u_fifo/mem_reg[14][30]/D  492653.0625   -346.21  
+    0:01:23   74806.4      0.00       0.0    6368.6 u_fifo/mem_reg[14][28]/D  493127.1562   -345.47  
+    0:01:23   74862.7      0.00       0.0    6368.2 u_fifo/mem_reg[14][26]/D  493601.2500   -344.74  
+    0:01:23   74919.1      0.00       0.0    6367.8 u_fifo/mem_reg[14][24]/D  494075.3438   -344.00  
+    0:01:23   74975.4      0.00       0.0    6367.4 u_fifo/mem_reg[14][22]/D  494549.4062   -343.27  
+    0:01:23   75031.7      0.00       0.0    6367.0 u_fifo/mem_reg[14][20]/D  495023.5000   -342.53  
+    0:01:23   75088.0      0.00       0.0    6366.6 u_fifo/mem_reg[14][18]/D  495497.5938   -341.80  
+    0:01:23   75144.3      0.00       0.0    6366.2 u_fifo/mem_reg[14][16]/D  495971.6875   -341.06  
+    0:01:24   75200.6      0.00       0.0    6365.9 u_fifo/mem_reg[14][14]/D  496445.7500   -340.33  
+    0:01:24   75256.9      0.00       0.0    6365.5 u_fifo/mem_reg[14][12]/D  496919.8438   -339.59  
+    0:01:24   75313.3      0.00       0.0    6365.1 u_fifo/mem_reg[14][10]/D  497393.9375   -338.86  
+    0:01:24   75369.6      0.00       0.0    6364.7 u_fifo/mem_reg[14][8]/D   497868.0312   -338.12  
+    0:01:24   75425.9      0.00       0.0    6364.3 u_fifo/mem_reg[14][6]/D   498342.0938   -337.39  
+    0:01:24   75482.2      0.00       0.0    6363.9 u_fifo/mem_reg[14][4]/D   498816.1875   -336.65  
+    0:01:24   75538.5      0.00       0.0    6363.5 u_fifo/mem_reg[14][2]/D   499290.2812   -335.92  
+    0:01:24   75594.8      0.00       0.0    6363.1 u_fifo/mem_reg[13][0]/D   499764.3750   -335.18  
+    0:01:25   75653.5      0.00       0.0    6362.8 u_fifo/mem_reg[13][62]/D  500258.2188   -334.42  
+    0:01:25   75709.8      0.00       0.0    6362.4 u_fifo/mem_reg[13][60]/D  500732.2812   -333.68  
+    0:01:25   75766.1      0.00       0.0    6362.0 u_fifo/mem_reg[13][58]/D  501206.3750   -332.95  
+    0:01:25   75822.5      0.00       0.0    6361.6 u_fifo/mem_reg[13][56]/D  501680.4688   -332.21  
+    0:01:25   75878.8      0.00       0.0    6361.2 u_fifo/mem_reg[13][54]/D  502154.5625   -331.48  
+    0:01:25   75935.1      0.00       0.0    6360.8 u_fifo/mem_reg[13][52]/D  502628.6250   -330.74  
+    0:01:25   75991.4      0.00       0.0    6360.4 u_fifo/mem_reg[13][50]/D  503102.7188   -330.01  
+    0:01:25   76047.7      0.00       0.0    6360.1 u_fifo/mem_reg[13][48]/D  503576.8125   -329.27  
+    0:01:26   76104.0      0.00       0.0    6359.7 u_fifo/mem_reg[13][46]/D  504050.9062   -328.54  
+    0:01:26   76160.3      0.00       0.0    6359.3 u_fifo/mem_reg[13][44]/D  504525.0000   -327.80  
+    0:01:26   76216.7      0.00       0.0    6358.9 u_fifo/mem_reg[13][42]/D  504999.0625   -327.07  
+    0:01:26   76273.0      0.00       0.0    6358.5 u_fifo/mem_reg[13][40]/D  505473.1562   -326.33  
+    0:01:26   76329.3      0.00       0.0    6358.1 u_fifo/mem_reg[13][38]/D  505947.2500   -325.60  
+    0:01:26   76385.6      0.00       0.0    6357.7 u_fifo/mem_reg[13][36]/D  506421.3438   -324.86  
+    0:01:26   76441.9      0.00       0.0    6357.3 u_fifo/mem_reg[13][34]/D  506895.4062   -324.13  
+    0:01:27   76498.2      0.00       0.0    6357.0 u_fifo/mem_reg[13][32]/D  507369.5000   -323.39  
+    0:01:27   76554.6      0.00       0.0    6356.6 u_fifo/mem_reg[13][30]/D  507843.5938   -322.66  
+    0:01:27   76610.9      0.00       0.0    6356.2 u_fifo/mem_reg[13][28]/D  508317.6875   -321.92  
+    0:01:27   76667.2      0.00       0.0    6355.8 u_fifo/mem_reg[13][26]/D  508791.7500   -321.19  
+    0:01:27   76723.5      0.00       0.0    6355.4 u_fifo/mem_reg[13][24]/D  509265.8438   -320.45  
+    0:01:27   76779.8      0.00       0.0    6355.0 u_fifo/mem_reg[13][22]/D  509739.9375   -319.72  
+    0:01:27   76836.1      0.00       0.0    6354.6 u_fifo/mem_reg[13][20]/D  510214.0312   -318.98  
+    0:01:27   76892.5      0.00       0.0    6354.3 u_fifo/mem_reg[13][18]/D  510688.0938   -318.25  
+    0:01:28   76948.8      0.00       0.0    6353.9 u_fifo/mem_reg[13][16]/D  511162.1875   -317.51  
+    0:01:28   77005.1      0.00       0.0    6353.5 u_fifo/mem_reg[13][14]/D  511636.2812   -316.78  
+    0:01:28   77061.4      0.00       0.0    6353.1 u_fifo/mem_reg[13][12]/D  512110.3750   -316.04  
+    0:01:28   77117.7      0.00       0.0    6352.7 u_fifo/mem_reg[13][10]/D  512584.4688   -315.31  
+    0:01:28   77174.0      0.00       0.0    6352.3 u_fifo/mem_reg[13][8]/D   513058.5312   -314.58  
+    0:01:28   77230.4      0.00       0.0    6351.9 u_fifo/mem_reg[13][6]/D   513532.6250   -313.84  
+    0:01:28   77286.7      0.00       0.0    6351.6 u_fifo/mem_reg[13][4]/D   514006.7188   -313.11  
+    0:01:29   77343.0      0.00       0.0    6351.2 u_fifo/mem_reg[13][2]/D   514480.8125   -312.37  
+    0:01:29   77399.3      0.00       0.0    6350.8 u_fifo/mem_reg[12][0]/D   514954.8750   -311.64  
+    0:01:29   77458.0      0.00       0.0    6350.4 u_fifo/mem_reg[12][62]/D  515448.7188   -310.87  
+    0:01:29   77514.3      0.00       0.0    6350.0 u_fifo/mem_reg[12][60]/D  515922.8125   -310.14  
+    0:01:29   77570.6      0.00       0.0    6349.6 u_fifo/mem_reg[12][58]/D  516396.9062   -309.40  
+    0:01:29   77626.9      0.00       0.0    6349.2 u_fifo/mem_reg[12][56]/D  516871.0000   -308.67  
+    0:01:29   77683.2      0.00       0.0    6348.8 u_fifo/mem_reg[12][54]/D  517345.0625   -307.93  
+    0:01:29   77739.5      0.00       0.0    6348.5 u_fifo/mem_reg[12][52]/D  517819.1562   -307.20  
+    0:01:30   77795.9      0.00       0.0    6348.1 u_fifo/mem_reg[12][50]/D  518293.2500   -306.46  
+    0:01:30   77852.2      0.00       0.0    6347.7 u_fifo/mem_reg[12][48]/D  518767.3438   -305.73  
+    0:01:30   77908.5      0.00       0.0    6347.3 u_fifo/mem_reg[12][46]/D  519241.4062   -304.99  
+    0:01:30   77964.8      0.00       0.0    6346.9 u_fifo/mem_reg[12][44]/D  519715.5000   -304.26  
+    0:01:30   78021.1      0.00       0.0    6346.5 u_fifo/mem_reg[12][42]/D  520189.5938   -303.52  
+    0:01:30   78077.4      0.00       0.0    6346.1 u_fifo/mem_reg[12][40]/D  520663.6875   -302.79  
+    0:01:30   78133.8      0.00       0.0    6345.8 u_fifo/mem_reg[12][38]/D  521137.7500   -302.06  
+    0:01:31   78190.1      0.00       0.0    6345.4 u_fifo/mem_reg[12][36]/D  521611.8438   -301.32  
+    0:01:31   78246.4      0.00       0.0    6345.0 u_fifo/mem_reg[12][34]/D  522085.9375   -300.59  
+    0:01:31   78302.7      0.00       0.0    6344.6 u_fifo/mem_reg[12][32]/D  522560.0312   -299.85  
+    0:01:31   78359.0      0.00       0.0    6344.2 u_fifo/mem_reg[12][30]/D  523034.0938   -299.12  
+    0:01:31   78415.3      0.00       0.0    6343.8 u_fifo/mem_reg[12][28]/D  523508.1875   -298.38  
+    0:01:31   78471.7      0.00       0.0    6343.4 u_fifo/mem_reg[12][26]/D  523982.2812   -297.65  
+    0:01:31   78528.0      0.00       0.0    6343.1 u_fifo/mem_reg[12][24]/D  524456.3750   -296.91  
+    0:01:32   78584.3      0.00       0.0    6342.7 u_fifo/mem_reg[12][22]/D  524930.4375   -296.18  
+    0:01:32   78640.6      0.00       0.0    6342.3 u_fifo/mem_reg[12][20]/D  525404.5625   -295.44  
+    0:01:32   78696.9      0.00       0.0    6341.9 u_fifo/mem_reg[12][18]/D  525878.6250   -294.71  
+    0:01:32   78753.2      0.00       0.0    6341.5 u_fifo/mem_reg[12][16]/D  526352.6875   -293.98  
+    0:01:32   78809.5      0.00       0.0    6341.1 u_fifo/mem_reg[12][14]/D  526826.8125   -293.24  
+    0:01:32   78865.9      0.00       0.0    6340.7 u_fifo/mem_reg[12][12]/D  527300.8750   -292.51  
+    0:01:32   78922.2      0.00       0.0    6340.3 u_fifo/mem_reg[12][10]/D  527775.0000   -291.77  
+    0:01:33   78978.5      0.00       0.0    6340.0 u_fifo/mem_reg[12][8]/D   528249.0625   -291.04  
+    0:01:33   79034.8      0.00       0.0    6339.6 u_fifo/mem_reg[12][6]/D   528723.1250   -290.30  
+    0:01:33   79091.1      0.00       0.0    6339.2 u_fifo/mem_reg[12][4]/D   529197.2500   -289.57  
+    0:01:33   79147.4      0.00       0.0    6338.8 u_fifo/mem_reg[12][2]/D   529671.3125   -288.83  
+    0:01:33   79203.8      0.00       0.0    6338.4 u_fifo/mem_reg[11][0]/D   530145.3750   -288.10  
+    0:01:33   79262.4      0.00       0.0    6338.0 u_fifo/mem_reg[11][62]/D  530639.2500   -287.33  
+    0:01:33   79318.7      0.00       0.0    6337.6 u_fifo/mem_reg[11][60]/D  531113.3125   -286.60  
+    0:01:33   79375.1      0.00       0.0    6337.3 u_fifo/mem_reg[11][58]/D  531587.4375   -285.86  
+    0:01:34   79431.4      0.00       0.0    6336.9 u_fifo/mem_reg[11][56]/D  532061.5000   -285.13  
+    0:01:34   79487.7      0.00       0.0    6336.5 u_fifo/mem_reg[11][54]/D  532535.5625   -284.39  
+    0:01:34   79544.0      0.00       0.0    6336.1 u_fifo/mem_reg[11][52]/D  533009.6875   -283.66  
+    0:01:34   79600.3      0.00       0.0    6335.7 u_fifo/mem_reg[11][50]/D  533483.7500   -282.92  
+    0:01:34   79656.6      0.00       0.0    6335.3 u_fifo/mem_reg[11][48]/D  533957.8750   -282.19  
+    0:01:34   79712.9      0.00       0.0    6334.9 u_fifo/mem_reg[11][46]/D  534431.9375   -281.45  
+    0:01:34   79769.3      0.00       0.0    6334.6 u_fifo/mem_reg[11][44]/D  534906.0000   -280.72  
+    0:01:35   79825.6      0.00       0.0    6334.2 u_fifo/mem_reg[11][42]/D  535380.1250   -279.98  
+    0:01:35   79881.9      0.00       0.0    6333.8 u_fifo/mem_reg[11][40]/D  535854.1875   -279.25  
+    0:01:35   79938.2      0.00       0.0    6333.4 u_fifo/mem_reg[11][38]/D  536328.2500   -278.52  
+    0:01:35   79994.5      0.00       0.0    6333.0 u_fifo/mem_reg[11][36]/D  536802.3750   -277.78  
+    0:01:35   80050.8      0.00       0.0    6332.6 u_fifo/mem_reg[11][34]/D  537276.4375   -277.05  
+    0:01:35   80107.2      0.00       0.0    6332.2 u_fifo/mem_reg[11][32]/D  537750.5625   -276.31  
+    0:01:35   80163.5      0.00       0.0    6331.8 u_fifo/mem_reg[11][30]/D  538224.6250   -275.58  
+    0:01:35   80219.8      0.00       0.0    6331.5 u_fifo/mem_reg[11][28]/D  538698.6875   -274.84  
+    0:01:36   80276.1      0.00       0.0    6331.1 u_fifo/mem_reg[11][26]/D  539172.8125   -274.11  
+    0:01:36   80332.4      0.00       0.0    6330.7 u_fifo/mem_reg[11][24]/D  539646.8750   -273.37  
+    0:01:36   80388.7      0.00       0.0    6330.3 u_fifo/mem_reg[11][22]/D  540121.0000   -272.64  
+    0:01:36   80445.1      0.00       0.0    6329.9 u_fifo/mem_reg[11][20]/D  540595.0625   -271.90  
+    0:01:36   80501.4      0.00       0.0    6329.5 u_fifo/mem_reg[11][18]/D  541069.1250   -271.17  
+    0:01:36   80557.7      0.00       0.0    6329.1 u_fifo/mem_reg[11][16]/D  541543.2500   -270.43  
+    0:01:36   80614.0      0.00       0.0    6328.8 u_fifo/mem_reg[11][14]/D  542017.3125   -269.70  
+    0:01:37   80670.3      0.00       0.0    6328.4 u_fifo/mem_reg[11][12]/D  542491.3750   -268.96  
+    0:01:37   80726.6      0.00       0.0    6328.0 u_fifo/mem_reg[11][10]/D  542965.5000   -268.23  
+    0:01:37   80783.0      0.00       0.0    6327.6 u_fifo/mem_reg[11][8]/D   543439.5625   -267.49  
+    0:01:37   80839.3      0.00       0.0    6327.2 u_fifo/mem_reg[11][6]/D   543913.6875   -266.76  
+    0:01:37   80895.6      0.00       0.0    6326.8 u_fifo/mem_reg[11][4]/D   544387.7500   -266.02  
+    0:01:37   80951.9      0.00       0.0    6326.4 u_fifo/mem_reg[11][2]/D   544861.8125   -265.29  
+    0:01:37   81008.2      0.00       0.0    6326.1 u_fifo/mem_reg[10][0]/D   545335.9375   -264.55  
+    0:01:37   81066.9      0.00       0.0    6325.7 u_fifo/mem_reg[10][62]/D  545829.7500   -263.79  
+    0:01:38   81123.2      0.00       0.0    6325.3 u_fifo/mem_reg[10][60]/D  546303.8750   -263.05  
+    0:01:38   81179.5      0.00       0.0    6324.9 u_fifo/mem_reg[10][58]/D  546777.9375   -262.32  
+    0:01:38   81235.8      0.00       0.0    6324.5 u_fifo/mem_reg[10][56]/D  547252.0000   -261.58  
+    0:01:38   81292.1      0.00       0.0    6324.1 u_fifo/mem_reg[10][54]/D  547726.1250   -260.85  
+    0:01:38   81348.5      0.00       0.0    6323.7 u_fifo/mem_reg[10][52]/D  548200.1875   -260.11  
+    0:01:38   81404.8      0.00       0.0    6323.3 u_fifo/mem_reg[10][50]/D  548674.2500   -259.38  
+    0:01:38   81461.1      0.00       0.0    6323.0 u_fifo/mem_reg[10][48]/D  549148.3750   -258.64  
+    0:01:39   81517.4      0.00       0.0    6322.6 u_fifo/mem_reg[10][46]/D  549622.4375   -257.91  
+    0:01:39   81573.7      0.00       0.0    6322.2 u_fifo/mem_reg[10][44]/D  550096.5625   -257.17  
+    0:01:39   81630.0      0.00       0.0    6321.8 u_fifo/mem_reg[10][42]/D  550570.6250   -256.44  
+    0:01:39   81686.4      0.00       0.0    6321.4 u_fifo/mem_reg[10][40]/D  551044.6875   -255.70  
+    0:01:39   81742.7      0.00       0.0    6321.0 u_fifo/mem_reg[10][38]/D  551518.8125   -254.97  
+    0:01:39   81799.0      0.00       0.0    6320.6 u_fifo/mem_reg[10][36]/D  551992.8750   -254.23  
+    0:01:39   81855.3      0.00       0.0    6320.3 u_fifo/mem_reg[10][34]/D  552467.0000   -253.50  
+    0:01:39   81911.6      0.00       0.0    6319.9 u_fifo/mem_reg[10][32]/D  552941.0625   -252.76  
+    0:01:40   81967.9      0.00       0.0    6319.5 u_fifo/mem_reg[10][30]/D  553415.1250   -252.03  
+    0:01:40   82024.3      0.00       0.0    6319.1 u_fifo/mem_reg[10][28]/D  553889.2500   -251.29  
+    0:01:40   82080.6      0.00       0.0    6318.7 u_fifo/mem_reg[10][26]/D  554363.3125   -250.56  
+    0:01:40   82136.9      0.00       0.0    6318.3 u_fifo/mem_reg[10][24]/D  554837.3750   -249.82  
+    0:01:40   82193.2      0.00       0.0    6317.9 u_fifo/mem_reg[10][22]/D  555311.5000   -249.09  
+    0:01:40   82249.5      0.00       0.0    6317.6 u_fifo/mem_reg[10][20]/D  555785.5625   -248.35  
+    0:01:40   82305.8      0.00       0.0    6317.2 u_fifo/mem_reg[10][18]/D  556259.6875   -247.62  
+    0:01:41   82362.1      0.00       0.0    6316.8 u_fifo/mem_reg[10][16]/D  556733.7500   -246.88  
+    0:01:41   82418.5      0.00       0.0    6316.4 u_fifo/mem_reg[10][14]/D  557207.8125   -246.15  
+    0:01:41   82474.8      0.00       0.0    6316.0 u_fifo/mem_reg[10][12]/D  557681.9375   -245.42  
+    0:01:41   82531.1      0.00       0.0    6315.6 u_fifo/mem_reg[10][10]/D  558156.0000   -244.68  
+    0:01:41   82587.4      0.00       0.0    6315.2 u_fifo/mem_reg[10][8]/D   558630.1250   -243.95  
+    0:01:41   82643.7      0.00       0.0    6314.8 u_fifo/mem_reg[10][6]/D   559104.1875   -243.21  
+    0:01:41   82700.0      0.00       0.0    6314.5 u_fifo/mem_reg[10][4]/D   559578.2500   -242.48  
+    0:01:41   82756.4      0.00       0.0    6314.1 u_fifo/mem_reg[10][2]/D   560052.3750   -241.74  
+    0:01:42   82812.7      0.00       0.0    6313.7 u_fifo/mem_reg[9][0]/D    560526.4375   -241.01  
+    0:01:42   82870.9      0.00       0.0    6313.3 u_fifo/mem_reg[9][62]/D   561023.4375   -240.25  
+    0:01:42   82927.2      0.00       0.0    6312.9 u_fifo/mem_reg[9][60]/D   561497.5000   -239.52  
+    0:01:42   82983.5      0.00       0.0    6312.5 u_fifo/mem_reg[9][58]/D   561971.6250   -238.78  
+    0:01:42   83039.8      0.00       0.0    6312.1 u_fifo/mem_reg[9][56]/D   562445.6875   -238.05  
+    0:01:42   83096.1      0.00       0.0    6311.8 u_fifo/mem_reg[9][54]/D   562919.8125   -237.31  
+    0:01:42   83152.4      0.00       0.0    6311.4 u_fifo/mem_reg[9][52]/D   563393.8750   -236.58  
+    0:01:42   83208.8      0.00       0.0    6311.0 u_fifo/mem_reg[9][50]/D   563867.9375   -235.84  
+    0:01:43   83265.1      0.00       0.0    6310.6 u_fifo/mem_reg[9][48]/D   564342.0625   -235.11  
+    0:01:43   83321.4      0.00       0.0    6310.2 u_fifo/mem_reg[9][46]/D   564816.1250   -234.37  
+    0:01:43   83377.7      0.00       0.0    6309.8 u_fifo/mem_reg[9][44]/D   565290.2500   -233.64  
+    0:01:43   83434.0      0.00       0.0    6309.4 u_fifo/mem_reg[9][42]/D   565764.3125   -232.90  
+    0:01:43   83490.3      0.00       0.0    6309.1 u_fifo/mem_reg[9][40]/D   566238.3750   -232.17  
+    0:01:43   83546.7      0.00       0.0    6308.7 u_fifo/mem_reg[9][38]/D   566712.5000   -231.43  
+    0:01:43   83603.0      0.00       0.0    6308.3 u_fifo/mem_reg[9][36]/D   567186.5625   -230.70  
+    0:01:44   83659.3      0.00       0.0    6307.9 u_fifo/mem_reg[9][34]/D   567660.6250   -229.96  
+    0:01:44   83715.6      0.00       0.0    6307.5 u_fifo/mem_reg[9][32]/D   568134.7500   -229.23  
+    0:01:44   83771.9      0.00       0.0    6307.1 u_fifo/mem_reg[9][30]/D   568608.8125   -228.49  
+    0:01:44   83828.2      0.00       0.0    6306.7 u_fifo/mem_reg[9][28]/D   569082.9375   -227.76  
+    0:01:44   83884.6      0.00       0.0    6306.3 u_fifo/mem_reg[9][26]/D   569557.0000   -227.02  
+    0:01:44   83940.9      0.00       0.0    6306.0 u_fifo/mem_reg[9][24]/D   570031.0625   -226.29  
+    0:01:44   83997.2      0.00       0.0    6305.6 u_fifo/mem_reg[9][22]/D   570505.1875   -225.55  
+    0:01:44   84053.5      0.00       0.0    6305.2 u_fifo/mem_reg[9][20]/D   570979.2500   -224.82  
+    0:01:45   84109.8      0.00       0.0    6304.8 u_fifo/mem_reg[9][18]/D   571453.3125   -224.08  
+    0:01:45   84166.1      0.00       0.0    6304.4 u_fifo/mem_reg[9][16]/D   571927.4375   -223.35  
+    0:01:45   84222.5      0.00       0.0    6304.0 u_fifo/mem_reg[9][14]/D   572401.5000   -222.61  
+    0:01:45   84278.8      0.00       0.0    6303.6 u_fifo/mem_reg[9][12]/D   572875.6250   -221.88  
+    0:01:45   84335.1      0.00       0.0    6303.3 u_fifo/mem_reg[9][10]/D   573349.6875   -221.14  
+    0:01:45   84391.4      0.00       0.0    6302.9 u_fifo/mem_reg[9][8]/D    573823.7500   -220.41  
+    0:01:45   84447.7      0.00       0.0    6302.5 u_fifo/mem_reg[9][6]/D    574297.8750   -219.67  
+    0:01:45   84504.0      0.00       0.0    6302.1 u_fifo/mem_reg[9][4]/D    574771.9375   -218.94  
+    0:01:46   84560.3      0.00       0.0    6301.7 u_fifo/mem_reg[9][2]/D    575246.0625   -218.20  
+    0:01:46   84617.1      0.00       0.0    6301.3 u_fifo/mem_reg[8][0]/D    575716.9375   -217.46  
+    0:01:46   84673.5      0.00       0.0    6300.9 u_fifo/mem_reg[8][62]/D   576191.0625   -216.73  
+    0:01:46   84729.8      0.00       0.0    6300.5 u_fifo/mem_reg[8][60]/D   576665.1250   -216.00  
+    0:01:46   84786.1      0.00       0.0    6300.2 u_fifo/mem_reg[8][58]/D   577139.1875   -215.26  
+    0:01:46   84842.4      0.00       0.0    6299.8 u_fifo/mem_reg[8][56]/D   577613.3125   -214.53  
+    0:01:46   84898.7      0.00       0.0    6299.4 u_fifo/mem_reg[8][54]/D   578087.3750   -213.79  
+    0:01:47   84955.0      0.00       0.0    6299.0 u_fifo/mem_reg[8][52]/D   578561.5000   -213.06  
+    0:01:47   85011.3      0.00       0.0    6298.6 u_fifo/mem_reg[8][50]/D   579035.5625   -212.32  
+    0:01:47   85067.7      0.00       0.0    6298.2 u_fifo/mem_reg[8][48]/D   579509.6250   -211.59  
+    0:01:47   85124.0      0.00       0.0    6297.8 u_fifo/mem_reg[8][46]/D   579983.7500   -210.85  
+    0:01:47   85180.3      0.00       0.0    6297.5 u_fifo/mem_reg[8][44]/D   580457.8125   -210.12  
+    0:01:47   85236.6      0.00       0.0    6297.1 u_fifo/mem_reg[8][42]/D   580931.9375   -209.38  
+    0:01:47   85292.9      0.00       0.0    6296.7 u_fifo/mem_reg[8][40]/D   581406.0000   -208.65  
+    0:01:48   85349.2      0.00       0.0    6296.3 u_fifo/mem_reg[8][38]/D   581880.0625   -207.91  
+    0:01:48   85405.6      0.00       0.0    6295.9 u_fifo/mem_reg[8][36]/D   582354.1875   -207.18  
+    0:01:48   85461.9      0.00       0.0    6295.5 u_fifo/mem_reg[8][34]/D   582828.2500   -206.45  
+    0:01:48   85518.2      0.00       0.0    6295.1 u_fifo/mem_reg[8][32]/D   583302.3125   -205.71  
+    0:01:48   85574.5      0.00       0.0    6294.8 u_fifo/mem_reg[8][30]/D   583776.4375   -204.98  
+    0:01:48   85630.8      0.00       0.0    6294.4 u_fifo/mem_reg[8][28]/D   584250.5000   -204.24  
+    0:01:48   85687.1      0.00       0.0    6294.0 u_fifo/mem_reg[8][26]/D   584724.6250   -203.51  
+    0:01:49   85743.5      0.00       0.0    6293.6 u_fifo/mem_reg[8][24]/D   585198.6875   -202.77  
+    0:01:49   85799.8      0.00       0.0    6293.2 u_fifo/mem_reg[8][22]/D   585672.7500   -202.04  
+    0:01:49   85856.1      0.00       0.0    6292.8 u_fifo/mem_reg[8][20]/D   586146.8750   -201.30  
+    0:01:49   85912.4      0.00       0.0    6292.4 u_fifo/mem_reg[8][18]/D   586620.9375   -200.57  
+    0:01:49   85968.7      0.00       0.0    6292.0 u_fifo/mem_reg[8][16]/D   587095.0000   -199.83  
+    0:01:49   86025.0      0.00       0.0    6291.7 u_fifo/mem_reg[8][14]/D   587569.1250   -199.10  
+    0:01:49   86081.4      0.00       0.0    6291.3 u_fifo/mem_reg[8][12]/D   588043.1875   -198.37  
+    0:01:50   86137.7      0.00       0.0    6290.9 u_fifo/mem_reg[8][10]/D   588517.3125   -197.63  
+    0:01:50   86194.0      0.00       0.0    6290.5 u_fifo/mem_reg[8][8]/D    588991.3750   -196.90  
+    0:01:50   86250.3      0.00       0.0    6290.1 u_fifo/mem_reg[8][6]/D    589465.4375   -196.16  
+    0:01:50   86306.6      0.00       0.0    6289.7 u_fifo/mem_reg[8][4]/D    589939.5625   -195.43  
+    0:01:50   86362.9      0.00       0.0    6289.3 u_fifo/mem_reg[8][2]/D    590413.6250   -194.69  
+    0:01:50   86423.9      0.00       0.0    6288.8 u_fifo/mem_reg[7][63]/D   590927.2500   -193.89  
+    0:01:50   86480.3      0.00       0.0    6288.4 u_fifo/mem_reg[7][61]/D   591401.3125   -193.15  
+    0:01:51   86536.6      0.00       0.0    6288.0 u_fifo/mem_reg[7][59]/D   591875.3750   -192.42  
+    0:01:51   86592.9      0.00       0.0    6287.6 u_fifo/mem_reg[7][57]/D   592349.5000   -191.68  
+    0:01:51   86649.2      0.00       0.0    6287.2 u_fifo/mem_reg[7][55]/D   592823.5625   -190.95  
+    0:01:51   86705.5      0.00       0.0    6286.8 u_fifo/mem_reg[7][53]/D   593297.6875   -190.21  
+    0:01:51   86761.8      0.00       0.0    6286.4 u_fifo/mem_reg[7][51]/D   593771.7500   -189.48  
+    0:01:51   86818.2      0.00       0.0    6286.1 u_fifo/mem_reg[7][49]/D   594245.8125   -188.74  
+    0:01:51   86874.5      0.00       0.0    6285.7 u_fifo/mem_reg[7][47]/D   594719.9375   -188.01  
+    0:01:52   86930.8      0.00       0.0    6285.3 u_fifo/mem_reg[7][45]/D   595194.0000   -187.27  
+    0:01:52   86987.1      0.00       0.0    6284.9 u_fifo/mem_reg[7][43]/D   595668.0625   -186.54  
+    0:01:52   87043.4      0.00       0.0    6284.5 u_fifo/mem_reg[7][41]/D   596142.1875   -185.81  
+    0:01:52   87099.7      0.00       0.0    6284.1 u_fifo/mem_reg[7][39]/D   596616.2500   -185.07  
+    0:01:52   87156.0      0.00       0.0    6283.7 u_fifo/mem_reg[7][37]/D   597090.3750   -184.34  
+    0:01:52   87212.4      0.00       0.0    6283.4 u_fifo/mem_reg[7][35]/D   597564.4375   -183.60  
+    0:01:52   87271.0      0.00       0.0    6283.0 u_fifo/mem_reg[7][33]/D   598058.2500   -182.84  
+    0:01:52   87329.7      0.00       0.0    6282.6 u_fifo/mem_reg[7][31]/D   598552.1250   -182.07  
+    0:01:53   87388.4      0.00       0.0    6282.2 u_fifo/mem_reg[7][29]/D   599045.9375   -181.31  
+    0:01:53   87447.0      0.00       0.0    6281.8 u_fifo/mem_reg[7][27]/D   599539.8125   -180.54  
+    0:01:53   87505.7      0.00       0.0    6281.4 u_fifo/mem_reg[7][25]/D   600033.6250   -179.78  
+    0:01:53   87564.3      0.00       0.0    6281.0 u_fifo/mem_reg[7][23]/D   600527.5000   -179.01  
+    0:01:53   87623.0      0.00       0.0    6280.7 u_fifo/mem_reg[7][21]/D   601021.3125   -178.25  
+    0:01:53   87681.7      0.00       0.0    6280.3 u_fifo/mem_reg[7][19]/D   601515.1875   -177.48  
+    0:01:53   87740.3      0.00       0.0    6279.9 u_fifo/mem_reg[7][17]/D   602009.0000   -176.72  
+    0:01:53   87798.5      0.00       0.0    6279.5 u_fifo/mem_reg[7][15]/D   602506.0000   -175.96  
+    0:01:54   87855.3      0.00       0.0    6279.1 u_fifo/mem_reg[7][13]/D   602976.9375   -175.23  
+    0:01:54   87914.0      0.00       0.0    6278.5 u_fifo/mem_reg[7][10]/D   603470.7500   -174.45  
+    0:01:54   87972.6      0.00       0.0    6278.1 u_fifo/mem_reg[7][8]/D    603964.6250   -173.68  
+    0:01:54   88031.3      0.00       0.0    6277.8 u_fifo/mem_reg[7][6]/D    604458.4375   -172.92  
+    0:01:54   88090.0      0.00       0.0    6277.4 u_fifo/mem_reg[7][4]/D    604952.3125   -172.16  
+    0:01:54   88146.3      0.00       0.0    6277.0 u_fifo/mem_reg[7][2]/D    605426.3750   -171.42  
+    0:01:54   88204.9      0.00       0.0    6276.6 u_fifo/mem_reg[6][0]/D    605920.1875   -170.66  
+    0:01:55   88263.6      0.00       0.0    6276.2 u_fifo/mem_reg[6][62]/D   606414.0625   -169.89  
+    0:01:55   88319.9      0.00       0.0    6275.8 u_fifo/mem_reg[6][60]/D   606888.1250   -169.16  
+    0:01:55   88376.2      0.00       0.0    6275.4 u_fifo/mem_reg[6][58]/D   607362.2500   -168.42  
+    0:01:55   88432.5      0.00       0.0    6275.0 u_fifo/mem_reg[6][56]/D   607836.3125   -167.69  
+    0:01:55   88488.9      0.00       0.0    6274.7 u_fifo/mem_reg[6][54]/D   608310.3750   -166.95  
+    0:01:55   88545.2      0.00       0.0    6274.3 u_fifo/mem_reg[6][52]/D   608784.5000   -166.22  
+    0:01:55   88601.5      0.00       0.0    6273.9 u_fifo/mem_reg[6][50]/D   609258.5625   -165.48  
+    0:01:55   88657.8      0.00       0.0    6273.5 u_fifo/mem_reg[6][48]/D   609732.6250   -164.75  
+    0:01:56   88714.1      0.00       0.0    6273.1 u_fifo/mem_reg[6][46]/D   610206.7500   -164.01  
+    0:01:56   88770.4      0.00       0.0    6272.7 u_fifo/mem_reg[6][44]/D   610680.8125   -163.28  
+    0:01:56   88826.8      0.00       0.0    6272.3 u_fifo/mem_reg[6][42]/D   611154.9375   -162.55  
+    0:01:56   88883.1      0.00       0.0    6272.0 u_fifo/mem_reg[6][40]/D   611629.0000   -161.81  
+    0:01:56   88939.4      0.00       0.0    6271.6 u_fifo/mem_reg[6][38]/D   612103.0625   -161.08  
+    0:01:56   88995.7      0.00       0.0    6271.2 u_fifo/mem_reg[6][36]/D   612577.1875   -160.34  
+    0:01:56   89054.4      0.00       0.0    6270.8 u_fifo/mem_reg[6][34]/D   613071.0000   -159.58  
+    0:01:57   89113.0      0.00       0.0    6270.4 u_fifo/mem_reg[6][32]/D   613564.8750   -158.81  
+    0:01:57   89171.7      0.00       0.0    6270.0 u_fifo/mem_reg[6][30]/D   614058.6875   -158.05  
+    0:01:57   89230.4      0.00       0.0    6269.6 u_fifo/mem_reg[6][28]/D   614552.5625   -157.28  
+    0:01:57   89289.0      0.00       0.0    6269.3 u_fifo/mem_reg[6][26]/D   615046.3750   -156.52  
+    0:01:57   89347.2      0.00       0.0    6268.9 u_fifo/mem_reg[6][24]/D   615543.3750   -155.76  
+    0:01:57   89404.0      0.00       0.0    6268.5 u_fifo/mem_reg[6][22]/D   616014.3125   -155.02  
+    0:01:57   89462.7      0.00       0.0    6267.9 u_fifo/mem_reg[6][19]/D   616508.1250   -154.25  
+    0:01:57   89521.3      0.00       0.0    6267.5 u_fifo/mem_reg[6][17]/D   617002.0000   -153.48  
+    0:01:58   89580.0      0.00       0.0    6267.1 u_fifo/mem_reg[6][15]/D   617495.8125   -152.72  
+    0:01:58   89638.6      0.00       0.0    6266.7 u_fifo/mem_reg[6][13]/D   617989.6875   -151.95  
+    0:01:58   89697.3      0.00       0.0    6266.4 u_fifo/mem_reg[6][11]/D   618483.5000   -151.19  
+    0:01:58   89756.0      0.00       0.0    6266.0 u_fifo/mem_reg[6][9]/D    618977.3125   -150.42  
+    0:01:58   89814.6      0.00       0.0    6265.6 u_fifo/mem_reg[6][7]/D    619471.1875   -149.66  
+    0:01:58   89873.3      0.00       0.0    6265.2 u_fifo/mem_reg[6][5]/D    619965.0000   -148.90  
+    0:01:58   89932.0      0.00       0.0    6264.8 u_fifo/mem_reg[6][3]/D    620458.8750   -148.13  
+    0:01:59   89990.6      0.00       0.0    6264.4 u_fifo/mem_reg[6][1]/D    620952.6875   -147.37  
+    0:01:59   90049.3      0.00       0.0    6264.0 u_fifo/mem_reg[5][63]/D   621446.5625   -146.60  
+    0:01:59   90105.6      0.00       0.0    6263.6 u_fifo/mem_reg[5][61]/D   621920.6250   -145.87  
+    0:01:59   90161.9      0.00       0.0    6263.3 u_fifo/mem_reg[5][59]/D   622394.6875   -145.13  
+    0:01:59   90218.2      0.00       0.0    6262.9 u_fifo/mem_reg[5][57]/D   622868.8125   -144.40  
+    0:01:59   90274.5      0.00       0.0    6262.5 u_fifo/mem_reg[5][55]/D   623342.8750   -143.66  
+    0:01:59   90330.9      0.00       0.0    6262.1 u_fifo/mem_reg[5][53]/D   623817.0000   -142.93  
+    0:02:00   90387.2      0.00       0.0    6261.7 u_fifo/mem_reg[5][51]/D   624291.0625   -142.19  
+    0:02:00   90443.5      0.00       0.0    6261.3 u_fifo/mem_reg[5][49]/D   624765.1250   -141.46  
+    0:02:00   90499.8      0.00       0.0    6260.9 u_fifo/mem_reg[5][47]/D   625239.2500   -140.72  
+    0:02:00   90556.1      0.00       0.0    6260.6 u_fifo/mem_reg[5][45]/D   625713.3125   -139.99  
+    0:02:00   90612.4      0.00       0.0    6260.2 u_fifo/mem_reg[5][43]/D   626187.3750   -139.26  
+    0:02:00   90668.8      0.00       0.0    6259.8 u_fifo/mem_reg[5][41]/D   626661.5000   -138.52  
+    0:02:00   90725.1      0.00       0.0    6259.4 u_fifo/mem_reg[5][39]/D   627135.5625   -137.79  
+    0:02:01   90781.4      0.00       0.0    6259.0 u_fifo/mem_reg[5][37]/D   627609.6875   -137.05  
+    0:02:01   90837.7      0.00       0.0    6258.6 u_fifo/mem_reg[5][35]/D   628083.7500   -136.32  
+    0:02:01   90894.0      0.00       0.0    6258.2 u_fifo/mem_reg[5][33]/D   628557.8125   -135.58  
+    0:02:01   90950.3      0.00       0.0    6257.9 u_fifo/mem_reg[5][31]/D   629031.9375   -134.85  
+    0:02:01   91006.7      0.00       0.0    6257.5 u_fifo/mem_reg[5][29]/D   629506.0000   -134.11  
+    0:02:01   91063.0      0.00       0.0    6257.1 u_fifo/mem_reg[5][27]/D   629980.1250   -133.38  
+    0:02:01   91119.3      0.00       0.0    6256.7 u_fifo/mem_reg[5][25]/D   630454.1875   -132.64  
+    0:02:01   91175.6      0.00       0.0    6256.3 u_fifo/mem_reg[5][23]/D   630928.2500   -131.91  
+    0:02:02   91231.9      0.00       0.0    6255.9 u_fifo/mem_reg[5][21]/D   631402.3750   -131.17  
+    0:02:02   91288.2      0.00       0.0    6255.5 u_fifo/mem_reg[5][19]/D   631876.4375   -130.44  
+    0:02:02   91344.5      0.00       0.0    6255.1 u_fifo/mem_reg[5][17]/D   632350.5000   -129.71  
+    0:02:02   91400.9      0.00       0.0    6254.8 u_fifo/mem_reg[5][15]/D   632824.6250   -128.97  
+    0:02:02   91457.2      0.00       0.0    6254.4 u_fifo/mem_reg[5][13]/D   633298.6875   -128.24  
+    0:02:02   91513.5      0.00       0.0    6254.0 u_fifo/mem_reg[5][11]/D   633772.8125   -127.50  
+    0:02:02   91569.8      0.00       0.0    6253.6 u_fifo/mem_reg[5][9]/D    634246.8750   -126.77  
+    0:02:03   91626.1      0.00       0.0    6253.2 u_fifo/mem_reg[5][7]/D    634720.9375   -126.03  
+    0:02:03   91682.4      0.00       0.0    6252.8 u_fifo/mem_reg[5][5]/D    635195.0625   -125.30  
+    0:02:03   91738.8      0.00       0.0    6252.4 u_fifo/mem_reg[5][3]/D    635669.1250   -124.56  
+    0:02:03   91795.1      0.00       0.0    6252.1 u_fifo/mem_reg[5][1]/D    636143.1875   -123.83  
+    0:02:03   91853.3      0.00       0.0    6251.7 u_fifo/mem_reg[4][63]/D   636640.2500   -123.07  
+    0:02:03   91909.6      0.00       0.0    6251.3 u_fifo/mem_reg[4][61]/D   637114.3125   -122.34  
+    0:02:03   91965.9      0.00       0.0    6250.9 u_fifo/mem_reg[4][59]/D   637588.3750   -121.60  
+    0:02:04   92022.2      0.00       0.0    6250.5 u_fifo/mem_reg[4][57]/D   638062.5000   -120.87  
+    0:02:04   92078.5      0.00       0.0    6250.1 u_fifo/mem_reg[4][55]/D   638536.5625   -120.14  
+    0:02:04   92134.9      0.00       0.0    6249.7 u_fifo/mem_reg[4][53]/D   639010.6250   -119.40  
+    0:02:04   92191.2      0.00       0.0    6249.4 u_fifo/mem_reg[4][51]/D   639484.7500   -118.67  
+    0:02:04   92247.5      0.00       0.0    6249.0 u_fifo/mem_reg[4][49]/D   639958.8125   -117.93  
+    0:02:04   92303.8      0.00       0.0    6248.6 u_fifo/mem_reg[4][47]/D   640432.9375   -117.20  
+    0:02:04   92360.1      0.00       0.0    6248.2 u_fifo/mem_reg[4][45]/D   640907.0000   -116.46  
+    0:02:05   92416.4      0.00       0.0    6247.8 u_fifo/mem_reg[4][43]/D   641381.0625   -115.73  
+    0:02:05   92472.7      0.00       0.0    6247.4 u_fifo/mem_reg[4][41]/D   641855.1875   -114.99  
+    0:02:05   92529.1      0.00       0.0    6247.0 u_fifo/mem_reg[4][39]/D   642329.2500   -114.26  
+    0:02:05   92585.4      0.00       0.0    6246.6 u_fifo/mem_reg[4][37]/D   642803.3125   -113.52  
+    0:02:05   92641.7      0.00       0.0    6246.3 u_fifo/mem_reg[4][35]/D   643277.4375   -112.79  
+    0:02:05   92698.0      0.00       0.0    6245.9 u_fifo/mem_reg[4][33]/D   643751.5000   -112.06  
+    0:02:05   92754.3      0.00       0.0    6245.5 u_fifo/mem_reg[4][31]/D   644225.6250   -111.32  
+    0:02:06   92810.6      0.00       0.0    6245.1 u_fifo/mem_reg[4][29]/D   644699.6875   -110.59  
+    0:02:06   92867.0      0.00       0.0    6244.7 u_fifo/mem_reg[4][27]/D   645173.7500   -109.85  
+    0:02:06   92923.3      0.00       0.0    6244.3 u_fifo/mem_reg[4][25]/D   645647.8750   -109.12  
+    0:02:06   92979.6      0.00       0.0    6243.9 u_fifo/mem_reg[4][23]/D   646121.9375   -108.38  
+    0:02:06   93035.9      0.00       0.0    6243.6 u_fifo/mem_reg[4][21]/D   646596.0625   -107.65  
+    0:02:06   93092.2      0.00       0.0    6243.2 u_fifo/mem_reg[4][19]/D   647070.1250   -106.91  
+    0:02:06   93148.5      0.00       0.0    6242.8 u_fifo/mem_reg[4][17]/D   647544.1875   -106.18  
+    0:02:07   93204.9      0.00       0.0    6242.4 u_fifo/mem_reg[4][15]/D   648018.3125   -105.44  
+    0:02:07   93261.2      0.00       0.0    6242.0 u_fifo/mem_reg[4][13]/D   648492.3750   -104.71  
+    0:02:07   93317.5      0.00       0.0    6241.6 u_fifo/mem_reg[4][11]/D   648966.4375   -103.97  
+    0:02:07   93373.8      0.00       0.0    6241.2 u_fifo/mem_reg[4][9]/D    649440.5625   -103.24  
+    0:02:07   93430.1      0.00       0.0    6240.9 u_fifo/mem_reg[4][7]/D    649914.6250   -102.51  
+    0:02:07   93486.4      0.00       0.0    6240.5 u_fifo/mem_reg[4][5]/D    650388.7500   -101.77  
+    0:02:07   93542.8      0.00       0.0    6240.1 u_fifo/mem_reg[4][3]/D    650862.8125   -101.04  
+    0:02:08   93599.1      0.00       0.0    6239.7 u_fifo/mem_reg[4][1]/D    651336.8750   -100.30  
+    0:02:08   93655.9      0.00       0.0    6239.3 u_fifo/mem_reg[3][63]/D   651807.8125    -99.56  
+    0:02:08   93712.2      0.00       0.0    6238.9 u_fifo/mem_reg[3][61]/D   652281.9375    -98.83  
+    0:02:08   93768.5      0.00       0.0    6238.5 u_fifo/mem_reg[3][59]/D   652756.0000    -98.09  
+    0:02:08   93824.8      0.00       0.0    6238.1 u_fifo/mem_reg[3][57]/D   653230.0625    -97.36  
+    0:02:08   93881.1      0.00       0.0    6237.8 u_fifo/mem_reg[3][55]/D   653704.1875    -96.62  
+    0:02:08   93937.4      0.00       0.0    6237.4 u_fifo/mem_reg[3][53]/D   654178.2500    -95.89  
+    0:02:08   93993.7      0.00       0.0    6237.0 u_fifo/mem_reg[3][51]/D   654652.3125    -95.15  
+    0:02:09   94050.1      0.00       0.0    6236.6 u_fifo/mem_reg[3][49]/D   655126.4375    -94.42  
+    0:02:09   94106.4      0.00       0.0    6236.2 u_fifo/mem_reg[3][47]/D   655600.5000    -93.69  
+    0:02:09   94162.7      0.00       0.0    6235.8 u_fifo/mem_reg[3][45]/D   656074.6250    -92.95  
+    0:02:09   94219.0      0.00       0.0    6235.4 u_fifo/mem_reg[3][43]/D   656548.6875    -92.22  
+    0:02:09   94275.3      0.00       0.0    6235.1 u_fifo/mem_reg[3][41]/D   657022.7500    -91.48  
+    0:02:09   94331.6      0.00       0.0    6234.7 u_fifo/mem_reg[3][39]/D   657496.8750    -90.75  
+    0:02:09   94388.0      0.00       0.0    6234.3 u_fifo/mem_reg[3][37]/D   657970.9375    -90.01  
+    0:02:10   94444.3      0.00       0.0    6233.9 u_fifo/mem_reg[3][35]/D   658445.0000    -89.28  
+    0:02:10   94500.6      0.00       0.0    6233.5 u_fifo/mem_reg[3][33]/D   658919.1250    -88.54  
+    0:02:10   94556.9      0.00       0.0    6233.1 u_fifo/mem_reg[3][31]/D   659393.1875    -87.81  
+    0:02:10   94613.2      0.00       0.0    6232.7 u_fifo/mem_reg[3][29]/D   659867.3125    -87.07  
+    0:02:10   94669.5      0.00       0.0    6232.4 u_fifo/mem_reg[3][27]/D   660341.3750    -86.34  
+    0:02:10   94725.9      0.00       0.0    6232.0 u_fifo/mem_reg[3][25]/D   660815.4375    -85.60  
+    0:02:10   94782.2      0.00       0.0    6231.6 u_fifo/mem_reg[3][23]/D   661289.5625    -84.87  
+    0:02:11   94838.5      0.00       0.0    6231.2 u_fifo/mem_reg[3][21]/D   661763.6250    -84.14  
+    0:02:11   94894.8      0.00       0.0    6230.8 u_fifo/mem_reg[3][19]/D   662237.7500    -83.40  
+    0:02:11   94951.1      0.00       0.0    6230.4 u_fifo/mem_reg[3][17]/D   662711.8125    -82.67  
+    0:02:11   95007.4      0.00       0.0    6230.0 u_fifo/mem_reg[3][15]/D   663185.8750    -81.93  
+    0:02:11   95063.8      0.00       0.0    6229.6 u_fifo/mem_reg[3][13]/D   663660.0000    -81.20  
+    0:02:11   95120.1      0.00       0.0    6229.3 u_fifo/mem_reg[3][11]/D   664134.0625    -80.46  
+    0:02:11   95176.4      0.00       0.0    6228.9 u_fifo/mem_reg[3][9]/D    664608.1250    -79.73  
+    0:02:12   95232.7      0.00       0.0    6228.5 u_fifo/mem_reg[3][7]/D    665082.2500    -78.99  
+    0:02:12   95289.0      0.00       0.0    6228.1 u_fifo/mem_reg[3][5]/D    665556.3125    -78.26  
+    0:02:12   95345.3      0.00       0.0    6227.7 u_fifo/mem_reg[3][3]/D    666030.4375    -77.52  
+    0:02:12   95401.6      0.00       0.0    6227.3 u_fifo/mem_reg[3][1]/D    666504.5000    -76.79  
+    0:02:12   95462.7      0.00       0.0    6226.7 u_fifo/mem_reg[2][62]/D   667018.0625    -75.98  
+    0:02:12   95519.0      0.00       0.0    6226.4 u_fifo/mem_reg[2][60]/D   667492.1875    -75.25  
+    0:02:12   95575.3      0.00       0.0    6226.0 u_fifo/mem_reg[2][58]/D   667966.2500    -74.51  
+    0:02:13   95631.6      0.00       0.0    6225.6 u_fifo/mem_reg[2][56]/D   668440.3750    -73.78  
+    0:02:13   95687.9      0.00       0.0    6225.2 u_fifo/mem_reg[2][54]/D   668914.4375    -73.04  
+    0:02:13   95744.2      0.00       0.0    6224.8 u_fifo/mem_reg[2][52]/D   669388.5000    -72.31  
+    0:02:13   95800.6      0.00       0.0    6224.4 u_fifo/mem_reg[2][50]/D   669862.6250    -71.58  
+    0:02:13   95856.9      0.00       0.0    6224.0 u_fifo/mem_reg[2][48]/D   670336.6875    -70.84  
+    0:02:14   95913.2      0.00       0.0    6223.7 u_fifo/mem_reg[2][46]/D   670810.8125    -70.11  
+    0:02:14   95969.5      0.00       0.0    6223.3 u_fifo/mem_reg[2][44]/D   671284.8750    -69.37  
+    0:02:14   96025.8      0.00       0.0    6222.9 u_fifo/mem_reg[2][42]/D   671758.9375    -68.64  
+    0:02:14   96082.1      0.00       0.0    6222.5 u_fifo/mem_reg[2][40]/D   672233.0625    -67.90  
+    0:02:14   96138.4      0.00       0.0    6222.1 u_fifo/mem_reg[2][38]/D   672707.1250    -67.17  
+    0:02:14   96194.8      0.00       0.0    6221.7 u_fifo/mem_reg[2][36]/D   673181.1875    -66.43  
+    0:02:15   96251.1      0.00       0.0    6221.3 u_fifo/mem_reg[2][34]/D   673655.3125    -65.70  
+    0:02:15   96307.4      0.00       0.0    6221.0 u_fifo/mem_reg[2][32]/D   674129.3750    -64.96  
+    0:02:15   96363.7      0.00       0.0    6220.6 u_fifo/mem_reg[2][30]/D   674603.5000    -64.23  
+    0:02:15   96420.0      0.00       0.0    6220.2 u_fifo/mem_reg[2][28]/D   675077.5625    -63.50  
+    0:02:15   96476.3      0.00       0.0    6219.8 u_fifo/mem_reg[2][26]/D   675551.6250    -62.76  
+    0:02:15   96532.7      0.00       0.0    6219.4 u_fifo/mem_reg[2][24]/D   676025.7500    -62.03  
+    0:02:16   96589.0      0.00       0.0    6219.0 u_fifo/mem_reg[2][22]/D   676499.8125    -61.29  
+    0:02:16   96645.3      0.00       0.0    6218.6 u_fifo/mem_reg[2][20]/D   676973.9375    -60.56  
+    0:02:16   96701.6      0.00       0.0    6218.2 u_fifo/mem_reg[2][18]/D   677448.0000    -59.82  
+    0:02:16   96757.9      0.00       0.0    6217.9 u_fifo/mem_reg[2][16]/D   677922.0625    -59.09  
+    0:02:16   96814.2      0.00       0.0    6217.5 u_fifo/mem_reg[2][14]/D   678396.1875    -58.35  
+    0:02:16   96870.6      0.00       0.0    6217.1 u_fifo/mem_reg[2][12]/D   678870.2500    -57.62  
+    0:02:17   96926.9      0.00       0.0    6216.7 u_fifo/mem_reg[2][10]/D   679344.3125    -56.88  
+    0:02:17   96983.2      0.00       0.0    6216.3 u_fifo/mem_reg[2][8]/D    679818.4375    -56.15  
+    0:02:17   97039.5      0.00       0.0    6215.9 u_fifo/mem_reg[2][6]/D    680292.5000    -55.41  
+    0:02:17   97095.8      0.00       0.0    6215.5 u_fifo/mem_reg[2][4]/D    680766.6250    -54.68  
+    0:02:17   97152.1      0.00       0.0    6215.2 u_fifo/mem_reg[2][2]/D    681240.6875    -53.95  
+    0:02:17   97208.5      0.00       0.0    6214.8 u_fifo/mem_reg[1][0]/D    681714.7500    -53.21  
+    0:02:18   97267.1      0.00       0.0    6214.4 u_fifo/mem_reg[1][62]/D   682208.6250    -52.45  
+    0:02:18   97323.4      0.00       0.0    6214.0 u_fifo/mem_reg[1][60]/D   682682.6875    -51.71  
+    0:02:18   97379.7      0.00       0.0    6213.6 u_fifo/mem_reg[1][58]/D   683156.8125    -50.98  
+    0:02:18   97436.1      0.00       0.0    6213.2 u_fifo/mem_reg[1][56]/D   683630.8750    -50.24  
+    0:02:18   97492.4      0.00       0.0    6212.8 u_fifo/mem_reg[1][54]/D   684104.9375    -49.51  
+    0:02:18   97548.7      0.00       0.0    6212.5 u_fifo/mem_reg[1][52]/D   684579.0625    -48.77  
+    0:02:18   97605.0      0.00       0.0    6212.1 u_fifo/mem_reg[1][50]/D   685053.1250    -48.04  
+    0:02:19   97661.3      0.00       0.0    6211.7 u_fifo/mem_reg[1][48]/D   685527.1875    -47.30  
+    0:02:19   97717.6      0.00       0.0    6211.3 u_fifo/mem_reg[1][46]/D   686001.3125    -46.57  
+    0:02:19   97774.0      0.00       0.0    6210.9 u_fifo/mem_reg[1][44]/D   686475.3750    -45.83  
+    0:02:19   97830.3      0.00       0.0    6210.5 u_fifo/mem_reg[1][42]/D   686949.5000    -45.10  
+    0:02:19   97886.6      0.00       0.0    6210.1 u_fifo/mem_reg[1][40]/D   687423.5625    -44.37  
+    0:02:19   97942.9      0.00       0.0    6209.7 u_fifo/mem_reg[1][38]/D   687897.6250    -43.63  
+    0:02:19   97999.2      0.00       0.0    6209.4 u_fifo/mem_reg[1][36]/D   688371.7500    -42.90  
+    0:02:20   98055.5      0.00       0.0    6209.0 u_fifo/mem_reg[1][34]/D   688845.8125    -42.16  
+    0:02:20   98111.9      0.00       0.0    6208.6 u_fifo/mem_reg[1][32]/D   689319.8750    -41.43  
+    0:02:20   98168.2      0.00       0.0    6208.2 u_fifo/mem_reg[1][30]/D   689794.0000    -40.69  
+    0:02:20   98224.5      0.00       0.0    6207.8 u_fifo/mem_reg[1][28]/D   690268.0625    -39.96  
+    0:02:20   98280.8      0.00       0.0    6207.4 u_fifo/mem_reg[1][26]/D   690742.1875    -39.22  
+    0:02:20   98337.1      0.00       0.0    6207.0 u_fifo/mem_reg[1][24]/D   691216.2500    -38.49  
+    0:02:20   98393.4      0.00       0.0    6206.7 u_fifo/mem_reg[1][22]/D   691690.3125    -37.75  
+    0:02:21   98449.8      0.00       0.0    6206.3 u_fifo/mem_reg[1][20]/D   692164.4375    -37.02  
+    0:02:21   98506.1      0.00       0.0    6205.9 u_fifo/mem_reg[1][18]/D   692638.5000    -36.29  
+    0:02:21   98562.4      0.00       0.0    6205.5 u_fifo/mem_reg[1][16]/D   693112.6250    -35.55  
+    0:02:21   98618.7      0.00       0.0    6205.1 u_fifo/mem_reg[1][14]/D   693586.6875    -34.82  
+    0:02:21   98675.0      0.00       0.0    6204.7 u_fifo/mem_reg[1][12]/D   694060.7500    -34.08  
+    0:02:21   98731.3      0.00       0.0    6204.3 u_fifo/mem_reg[1][10]/D   694534.8750    -33.35  
+    0:02:21   98787.6      0.00       0.0    6204.0 u_fifo/mem_reg[1][8]/D    695008.9375    -32.61  
+    0:02:22   98844.0      0.00       0.0    6203.6 u_fifo/mem_reg[1][6]/D    695483.0000    -31.88  
+    0:02:22   98900.3      0.00       0.0    6203.2 u_fifo/mem_reg[1][4]/D    695957.1250    -31.14  
+    0:02:22   98956.6      0.00       0.0    6202.8 u_fifo/mem_reg[1][2]/D    696431.1875    -30.41  
+    0:02:22   99012.9      0.00       0.0    6202.4 u_fifo/mem_reg[0][0]/D    696905.3125    -29.67  
+    0:02:22   99071.6      0.00       0.0    6202.0 u_fifo/mem_reg[0][62]/D   697399.1250    -28.91  
+    0:02:22   99127.9      0.00       0.0    6201.6 u_fifo/mem_reg[0][60]/D   697873.1875    -28.17  
+    0:02:22   99184.2      0.00       0.0    6201.2 u_fifo/mem_reg[0][58]/D   698347.3125    -27.44  
+    0:02:22   99240.5      0.00       0.0    6200.9 u_fifo/mem_reg[0][56]/D   698821.3750    -26.70  
+    0:02:23   99296.8      0.00       0.0    6200.5 u_fifo/mem_reg[0][54]/D   699295.5000    -25.97  
+    0:02:23   99353.2      0.00       0.0    6200.1 u_fifo/mem_reg[0][52]/D   699769.5625    -25.23  
+    0:02:23   99409.5      0.00       0.0    6199.7 u_fifo/mem_reg[0][50]/D   700243.6250    -24.50  
+    0:02:23   99465.8      0.00       0.0    6199.3 u_fifo/mem_reg[0][48]/D   700717.7500    -23.76  
+    0:02:23   99522.1      0.00       0.0    6198.9 u_fifo/mem_reg[0][46]/D   701191.8125    -23.03  
+    0:02:23   99578.4      0.00       0.0    6198.5 u_fifo/mem_reg[0][44]/D   701665.8750    -22.30  
+    0:02:23   99634.7      0.00       0.0    6198.2 u_fifo/mem_reg[0][42]/D   702140.0000    -21.56  
+    0:02:24   99691.1      0.00       0.0    6197.8 u_fifo/mem_reg[0][40]/D   702614.0625    -20.83  
+    0:02:24   99747.4      0.00       0.0    6197.4 u_fifo/mem_reg[0][38]/D   703088.1875    -20.09  
+    0:02:24   99803.7      0.00       0.0    6197.0 u_fifo/mem_reg[0][36]/D   703562.2500    -19.36  
+    0:02:24   99860.0      0.00       0.0    6196.6 u_fifo/mem_reg[0][34]/D   704036.3125    -18.62  
+    0:02:24   99916.3      0.00       0.0    6196.2 u_fifo/mem_reg[0][32]/D   704510.4375    -17.89  
+    0:02:24   99972.6      0.00       0.0    6195.8 u_fifo/mem_reg[0][30]/D   704984.5000    -17.15  
+    0:02:24  100028.9      0.00       0.0    6195.5 u_fifo/mem_reg[0][28]/D   705458.6250    -16.42  
+    0:02:24  100085.3      0.00       0.0    6195.1 u_fifo/mem_reg[0][26]/D   705932.6875    -15.68  
+    0:02:25  100141.6      0.00       0.0    6194.7 u_fifo/mem_reg[0][24]/D   706406.7500    -14.95  
+    0:02:25  100197.9      0.00       0.0    6194.3 u_fifo/mem_reg[0][22]/D   706880.8750    -14.21  
+    0:02:25  100254.2      0.00       0.0    6193.9 u_fifo/mem_reg[0][20]/D   707354.9375    -13.48  
+    0:02:25  100310.5      0.00       0.0    6193.5 u_fifo/mem_reg[0][18]/D   707829.0000    -12.74  
+    0:02:25  100366.8      0.00       0.0    6193.1 u_fifo/mem_reg[0][16]/D   708303.1250    -12.01  
+    0:02:25  100423.2      0.00       0.0    6192.7 u_fifo/mem_reg[0][14]/D   708777.1875    -11.27  
+    0:02:25  100479.5      0.00       0.0    6192.4 u_fifo/mem_reg[0][12]/D   709251.3125    -10.54  
+    0:02:26  100535.8      0.00       0.0    6192.0 u_fifo/mem_reg[0][10]/D   709725.3750     -9.80  
+    0:02:26  100592.1      0.00       0.0    6191.6 u_fifo/mem_reg[0][8]/D    710199.4375     -9.07  
+    0:02:26  100648.4      0.00       0.0    6191.2 u_fifo/mem_reg[0][6]/D    710673.5625     -8.33  
+    0:02:26  100704.7      0.00       0.0    6190.8 u_fifo/mem_reg[0][4]/D    711147.6250     -7.60  
+    0:02:26  100761.1      0.00       0.0    6190.4 u_fifo/mem_reg[0][2]/D    711621.7500     -6.86  
+    0:02:26  100817.4      0.00       0.0    6189.9 u_wr/st_reg[1]/D          712095.8125     -6.16  
+    0:02:26  100872.7      0.00       0.0    6188.6 u_wr/rem_reg[5]/D         712611.1250     -5.56  
+    0:02:27  100953.5      0.00       0.0    6188.2 u_wr/rem_reg[24]/D        713346.2500     -4.66  
+    0:02:27  101028.6      0.00       0.0    6186.3 u_wr/awaddr_reg[4]/D      713978.3750     -3.75  
+    0:02:27  101096.6      0.00       0.0    6184.1 u_wr/awaddr_reg[11]/D     714725.1250     -2.82  
+    0:02:27  101167.5      0.00       0.0    6181.8 u_wr/awaddr_reg[18]/D     715419.3125     -1.89  
+    0:02:27  101238.3      0.00       0.0    6179.6 u_wr/awaddr_reg[25]/D     716113.5000     -0.96  
+    0:02:27  101309.2      0.00       0.0    6177.7 u_wr/cnt_reg[2]/D         716772.7500     -0.06  
+Information: State dependent leakage is now switched from off to on.
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+    0:02:28  101314.4      0.00       0.0    6177.4                           716844.0000      0.00  
+Loading db file '/usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db'
+
+
+Note: Symbol # after min delay cost means estimated hold TNS across all active scenarios 
+
+
+  Optimization Complete
+  ---------------------
+Warning: Design 'dma_top' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
+     Net 'u_fifo/wclk': 2325 load(s), 1 driver(s)
+Information: Total number of MV cells in the design.
+----------------------------------------------------------------------------------------------------
+ MV Cells                                           Total Number                                   
+----------------------------------------------------------------------------------------------------
+ Level Shifter:                                     0                                             
+ Enable Level Shifter:                              0                                             
+ Isolation Cell:                                    0                                             
+ Retention Cell:                                    0                                             
+ Retention Clamp Cell:                              0                                             
+ Switch Cell:                                       0                                             
+ Always-On Cell:                                    0                                             
+ Repeater Cell:                                     0                                             
+
+----------------------------------------------------------------------------------------------------
+Unmapped MV Cells 
+----------------------------------------------------------------------------------------------------
+0 Isolation Cells are unmapped 
+0 Retention Clamp Cells are unmapped 
+----------------------------------------------------------------------------------------------------
+FIX_HOLD: hold fixing pass finished
+Warning: In the design dma_top, net 's_bresp[1]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_top, net 'm_wstrb[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_top, net 's_wready' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[63]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[62]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[61]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[60]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[59]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[58]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[57]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[56]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[55]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[54]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[53]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[52]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[51]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[50]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[49]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[48]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[47]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[46]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[45]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[44]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[43]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[42]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[41]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[40]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[39]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[38]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[37]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[36]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[35]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[34]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[33]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[32]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[31]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[30]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[29]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[28]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[27]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[26]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[25]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[24]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[23]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[22]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[21]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[20]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[19]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[18]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[17]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[16]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[15]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[14]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[13]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[12]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[11]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[10]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[9]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[8]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[6]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[5]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[4]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[3]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[2]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[1]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'rdata[0]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'fifo_wfull' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_rd_engine, net 'arlen[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[63]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[62]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[61]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[60]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[59]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[58]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[57]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[56]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[55]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[54]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[53]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[52]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[51]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[50]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[49]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[48]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[47]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[46]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[45]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[44]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[43]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[22]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[21]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[20]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[19]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[18]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[17]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[16]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[15]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[14]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[13]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[12]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[11]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[10]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[9]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[8]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[7]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[6]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[5]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[4]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[3]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[2]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[1]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'fifo_rdata[0]' is connecting multiple ports. (UCN-1)
+Warning: In the design dma_wr_engine, net 'awlen[7]' is connecting multiple ports. (UCN-1)
+Writing ddc file 'results/dma_top.ddc'.
+Writing verilog file '/home/a33939_asu/Personal/axi4-dma-asic/synth/build/results/dma_top.v'.
+Warning: Verilog 'assign' or 'tran' statements are written out. (VO-4)
+Synthesis complete: /home/a33939_asu/Personal/axi4-dma-asic/synth/build
+exit 0
+
+Memory usage for this session 188 Mbytes.
+Memory usage for this session including child processes 188 Mbytes.
+CPU usage for this session 176 seconds ( 0.05 hours ).
+Elapsed time for this session 182 seconds ( 0.05 hours ).
+
+Thank you...

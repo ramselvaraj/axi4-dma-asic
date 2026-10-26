@@ -1,0 +1,96 @@
+ 
+****************************************
+Report : qor
+Design : dma_top
+Version: V-2023.12-SP5-1
+Date   : Mon Oct 26 04:58:33 2026
+****************************************
+
+
+  Timing Path Group 'clk_rd'
+  -----------------------------------
+  Levels of Logic:              10.00
+  Critical Path Length:          1.73
+  Critical Path Slack:           3.02
+  Critical Path Clk Period:     10.00
+  Total Negative Slack:          0.00
+  No. of Violating Paths:        0.00
+  Worst Hold Violation:         -0.37
+  Total Hold Violation:       -776.37
+  No. of Hold Violations:     2314.00
+  -----------------------------------
+
+  Timing Path Group 'clk_wr'
+  -----------------------------------
+  Levels of Logic:              13.00
+  Critical Path Length:          1.41
+  Critical Path Slack:           4.59
+  Critical Path Clk Period:      8.00
+  Total Negative Slack:          0.00
+  No. of Violating Paths:        0.00
+  Worst Hold Violation:         -0.11
+  Total Hold Violation:         -7.32
+  No. of Hold Violations:      127.00
+  -----------------------------------
+
+
+  Cell Count
+  -----------------------------------
+  Hierarchical Cell Count:          6
+  Hierarchical Port Count:        849
+  Leaf Cell Count:              10833
+  Buf/Inv Cell Count:            3554
+  Buf Cell Count:                 444
+  Inv Cell Count:                3110
+  CT Buf/Inv Cell Count:            0
+  Combinational Cell Count:      8366
+  Sequential Cell Count:         2467
+  Macro Count:                      0
+  -----------------------------------
+
+
+  Area
+  -----------------------------------
+  Combinational Area:    20196.325261
+  Noncombinational Area: 20665.155930
+  Buf/Inv Area:           5420.414889
+  Total Buffer Area:          1041.85
+  Total Inverter Area:        4378.57
+  Macro/Black Box Area:      0.000000
+  Net Area:                  0.000000
+  -----------------------------------
+  Cell Area:             40861.481190
+  Design Area:           40861.481190
+
+
+  Design Rules
+  -----------------------------------
+  Total Number of Nets:         10969
+  Nets With Violations:          4531
+  Max Trans Violations:             0
+  Max Cap Violations:            4531
+  -----------------------------------
+
+
+  Hostname: nc-asu6-l03.apporto.com
+
+  Compile CPU Statistics
+  -----------------------------------------
+  Resource Sharing:                    0.67
+  Logic Optimization:                  1.51
+  Mapping Optimization:                8.41
+  -----------------------------------------
+  Overall Compile Time:               25.03
+  Overall Compile Wall Clock Time:    25.97
+
+  --------------------------------------------------------------------
+
+  Design  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
+
+
+  Design (Hold)  WNS: 0.37  TNS: 783.69  Number of Violating Paths: 2441
+
+  --------------------------------------------------------------------
+
+
+1

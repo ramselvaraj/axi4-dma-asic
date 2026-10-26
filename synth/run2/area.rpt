@@ -1,0 +1,51 @@
+ 
+****************************************
+Report : area
+Design : dma_top
+Version: V-2023.12-SP5-1
+Date   : Mon Oct 26 04:56:29 2026
+****************************************
+
+Information: Updating design information... (UID-85)
+Warning: Design 'dma_top' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
+Library(s) Used:
+
+    gscl45nm (File: /usr/local2/cadence/NCSU/SRC/FreePDK45/osu_soc/lib/files/gscl45nm.db)
+
+Number of ports:                         1184
+Number of nets:                         11791
+Number of cells:                        10848
+Number of combinational cells:           8366
+Number of sequential cells:              2467
+Number of macros/black boxes:               0
+Number of buf/inv:                       3554
+Number of references:                       9
+
+Combinational area:              20196.325261
+Buf/Inv area:                     5420.414889
+Noncombinational area:           20665.155930
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 40861.481190
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area            Local cell area
+                                  -------------------  ------------------------------ 
+Hierarchical cell                 Absolute    Percent  Combi-      Noncombi-   Black-
+                                  Total       Total    national    national    boxes   Design
+--------------------------------  ----------  -------  ----------  ----------  ------  -------------------
+dma_top                           40861.4812    100.0    156.7462     30.9738  0.0000  dma_top
+u_done_x                             59.1318      0.1     17.8334     41.2984  0.0000  cdc_pulse_0
+u_fifo                            32130.1547     78.6  15274.7762  16855.3784  0.0000  async_fifo_DW64_AW5
+u_rd                               2653.8915      6.5   1569.8085   1084.0830  0.0000  dma_rd_engine
+u_regs                             2876.3397      7.0   1430.8957   1445.4440  0.0000  dma_regs
+u_start_x                            59.1318      0.1     17.8334     41.2984  0.0000  cdc_pulse_1
+u_wr                               2895.1117      7.1   1728.4319   1166.6798  0.0000  dma_wr_engine
+--------------------------------  ----------  -------  ----------  ----------  ------  -------------------
+Total                                                  20196.3253  20665.1559  0.0000
+
+1

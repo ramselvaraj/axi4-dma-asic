@@ -109,6 +109,14 @@ proc run_synthesis {} {
     if {![compile_ultra -no_autoungroup]} {
         error "Technology mapping failed."
     }
+    if {[env_or DC_FIX_HOLD 0] eq "1"} {
+        puts "FIX_HOLD: running compile -only_hold_time"
+        if {[catch {compile -only_hold_time} hold_msg]} {
+            puts "WARNING: hold fixing failed: $hold_msg"
+        } else {
+            puts "FIX_HOLD: hold fixing pass finished"
+        }
+    }
     redirect -file reports/check_mapped.rpt {set design_ok [check_design]}
     if {!$design_ok} {
         error "Mapped design failed check_design. See reports/check_mapped.rpt."

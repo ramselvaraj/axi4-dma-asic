@@ -79,6 +79,9 @@ if {[sizeof_collection $cfg_cells] > 0} {
 # This adds area. Normally hold is fixed after clock tree synthesis.
 if {[env_or DC_FIX_HOLD 0] eq "1"} {
     set_fix_hold [get_clocks *]
+    puts "FIX_HOLD: set_fix_hold applied to all clocks"
+} else {
+    puts "FIX_HOLD: off (set DC_FIX_HOLD=1 to turn it on)"
 }
 
 # Ports that belong to the write clock. Everything else is on clk_rd.

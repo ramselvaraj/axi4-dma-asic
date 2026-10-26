@@ -1,0 +1,7 @@
+rtl/dma_pkg.sv
+rtl/async_fifo.sv
+rtl/cdc_pulse.sv
+rtl/dma_regs.sv
+rtl/dma_rd_engine.sv
+rtl/dma_wr_engine.sv
+rtl/dma_top.sv

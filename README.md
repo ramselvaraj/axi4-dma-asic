@@ -1,3 +1,5 @@
+![AXI4-DMA banner](docs/banner.jpeg)
+
 # AXI4 DMA
 
 A DMA controller that copies a block of memory from one place to another without

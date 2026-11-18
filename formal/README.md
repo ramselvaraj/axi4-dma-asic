@@ -23,7 +23,7 @@ Environment contract (assumed, and what `dma_regs` / the AXI slave guarantee): `
 | `dma_wr_engine` | `prove` | **unbounded proof (k-induction)**: AW 4 KiB rule, 1..16 beats, alignment, FSM encoding, `awvalid == (st == S_AW)`, `WLAST` exactly on the final beat, B/W only accepted in their states, `done` only from idle |
 | `dma_wr_engine` | `bmc` (depth 30) | pass, adds: AW/W held until accepted, awlen+1 W beats per burst, byte accounting, `rem == 0` before done |
 | `dma_wr_engine` | `cover` | 4/4 reached |
-| `dma_rd_engine` | `wrap` | **fails, by design: finding D1 below** |
+| `dma_rd_engine` | `wrap` | pass (BMC 20) with the `cfg_bad` overflow rule assumed; failed before the D1 fix |
 
 The 32-bit accounting properties do not converge in k-induction or PDR, so they are bounded (BMC) checks only; the
 shape properties above are unbounded.
@@ -51,8 +51,8 @@ at 4 KiB pages and 4 GiB is a page boundary), but a transfer that extends past 0
 the address counter wraps to 0. Solver counterexample: `src = 0xFFFFFFF8`, `len = 0xC0000000`. Confirmed in plain
 simulation of the RTL: a 16-byte transfer from `0xFFFFFFF8` issues `AR addr=fffffff8 beats=1` then `AR addr=00000000 beats=1`.
 The write engine has the same structure. Impact: a mis-programmed transfer silently reads/writes low memory instead of
-being rejected with `cfg_err`. Suggested fix (not applied): add `({1'b0, src_addr} + len > 33'h1_0000_0000) ||
-({1'b0, dst_addr} + len > 33'h1_0000_0000)` to `cfg_bad`.
+being rejected with `cfg_err`. **FIXED** in `rtl/dma_regs.sv`: `cfg_bad` now includes `({1'b0, src_addr} + len > 33'h1_0000_0000) ||
+({1'b0, dst_addr} + len > 33'h1_0000_0000)`. `tb_rand` D1.4/D1.5 check both overflow cases are rejected with no bus traffic (an exact-4-GiB end is still accepted); regression 5 FIFO depths x 8 seeds passes.
 
 ## Not covered
 

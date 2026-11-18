@@ -13,7 +13,6 @@ cover: mode cover
 cover: depth 60
 wrap: mode bmc
 wrap: depth 20
-wrap: expect fail
 
 [engines]
 bmc: smtbmc boolector

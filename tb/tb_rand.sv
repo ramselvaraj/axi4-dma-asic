@@ -346,11 +346,11 @@ module tb_rand #(
 
     // ---- D1: bad configs must be rejected without any bus traffic -------------
     $display("[D1] bad configs");
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < 6; k++) begin
       arm_checker(0, 0);
       axil_write(IRQ_EN, 2'b11);
-      axil_write(SRC, (k == 1) ? 32'h4 : 32'h1000);
-      axil_write(DST, (k == 2) ? 32'h2 : 32'h2000);
+      axil_write(SRC, (k == 1) ? 32'h4 : (k == 4) ? 32'hFFFF_FFF8 : 32'h1000);
+      axil_write(DST, (k == 2) ? 32'h2 : (k == 5) ? 32'hFFFF_FFC8 : 32'h2000);
       axil_write(LEN, (k == 0) ? 32'd0 : (k == 3) ? 32'd12 : 32'd64);
       axil_write(CTRL, 1);
       repeat (20) @(posedge clk_rd);

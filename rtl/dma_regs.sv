@@ -36,7 +36,10 @@ module dma_regs (
   assign irq       = |(irq_status & irq_en);
 
   wire cfg_bad = (len == 32'd0) || (len[2:0] != 3'd0) ||
-                 (src_addr[2:0] != 3'd0) || (dst_addr[2:0] != 3'd0);
+                 (src_addr[2:0] != 3'd0) || (dst_addr[2:0] != 3'd0) ||
+                 // D1: reject transfers that would run past 4 GiB (the address counters would wrap to 0)
+                 (({1'b0, src_addr} + {1'b0, len}) > 33'h1_0000_0000) ||
+                 (({1'b0, dst_addr} + {1'b0, len}) > 33'h1_0000_0000);
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin

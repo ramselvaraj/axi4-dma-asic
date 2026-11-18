@@ -206,19 +206,22 @@ to 8 for each (40 runs, about 200 transfers each). The DUT RTL did not need any
 changes. The only bugs found during this work were in the memory models, which
 were fixed.
 
-To check that the testbench can fail, 18 bugs were injected one at a time into a
+To check that the testbench can fail, 18 bugs were first injected by hand into a
 copy of the RTL (no 4KB split, burst cap of 17, `WLAST` off by one, FIFO full or
 empty flag broken, no register lock, error bits dropped, write-1-to-clear
 inverted, interrupt enable ignored, bad configs accepted, wrong read address, B
 response skipped, `RREADY` ignoring the FIFO, registers not reset, start pulse
-lost, `done` not cleared on start). All 18 were caught.
+lost, `done` not cleared on start). All 18 were caught. `mutation/mutate_dma.py` now automates
+this with 65 mutants (61 caught; 4 explained survivors) and found one testbench gap, the
+unchecked AXI4-Lite `BRESP`/`RRESP`, which is now checked. See `mutation/README.md`.
 
 `make cov` shows every RTL line reached except `default:` branches that cannot
 happen and reads of `CTRL` and unmapped register addresses.
 
 ### Not tested
 
-- Formal proofs of the FIFO or the engines. Formal tools are not installed here.
+- Formal proofs of the FIFO. The two AXI engines are proven in `formal/` (unbounded for the burst-shape
+  invariants, bounded for byte accounting); the gated-clock FIFO in this repo is not modelled there.
 - Real CDC checking. Zero-delay simulation cannot show metastability or a
   synchronizer failing. That needs a CDC tool or a gate-level run with timing.
 - A real DDR controller, or AXI interconnect behavior such as out-of-order

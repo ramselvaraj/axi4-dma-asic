@@ -68,6 +68,13 @@ module tb_rand #(
     if (errors <= 20) $display("[%0t] FAIL: %s", $time, msg);
   endtask
 
+  // AXI4-Lite response checker: the register block only ever answers OKAY. (Added after mutation testing showed that a
+  // register block returning SLVERR on every write went unnoticed.)
+  always @(posedge clk_rd) if (rst_rd_n) begin
+    if (bvalid && bready && bresp_l !== 2'b00)        fail("AXI-Lite write response not OKAY");
+    if (rvalid_l && rready_l && rresp_l !== 2'b00)    fail("AXI-Lite read response not OKAY");
+  end
+
   // ------------------------------------------------------------------
   // protocol checker
   // ------------------------------------------------------------------

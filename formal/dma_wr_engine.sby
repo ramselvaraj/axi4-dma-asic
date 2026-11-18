@@ -1,0 +1,30 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc: mode bmc
+bmc: depth 30
+prove: mode prove
+prove: depth 40
+cover: mode cover
+cover: depth 60
+
+[engines]
+bmc: smtbmc boolector
+prove: smtbmc yices
+cover: smtbmc boolector
+
+[script]
+plugin -i slang
+bmc: read_slang -D ACCOUNTING --top dma_wr_engine dma_pkg.sv dma_wr_engine.sv dma_wr_engine_props.sv
+prove: read_slang --top dma_wr_engine dma_pkg.sv dma_wr_engine.sv dma_wr_engine_props.sv
+cover: read_slang --top dma_wr_engine dma_pkg.sv dma_wr_engine.sv dma_wr_engine_props.sv
+prep -top dma_wr_engine
+async2sync
+
+[files]
+../rtl/dma_pkg.sv
+../rtl/dma_wr_engine.sv
+dma_wr_engine_props.sv
